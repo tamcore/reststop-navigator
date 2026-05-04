@@ -9,7 +9,13 @@
 	let loading = $state(true);
 
 	onMount(async () => {
-		const id = decodeURIComponent($page.params.id);
+		const raw = $page.params.id;
+		if (!raw) {
+			error = 'Stop id is missing.';
+			loading = false;
+			return;
+		}
+		const id = decodeURIComponent(raw);
 		try {
 			detail = await fetchStopDetail(id);
 		} catch (err) {
