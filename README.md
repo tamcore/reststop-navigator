@@ -6,6 +6,12 @@ A PWA that, given your live GPS, identifies which highway and direction you're d
 
 When you've picked one, the detail page hands off to Google Maps, Apple Maps, or Waze with the rest stop as a destination.
 
+<p align="center">
+  <img src="docs/screenshots/list.png" alt="Upcoming rest stops along the route, filterable by amenity" width="320" />
+  &nbsp;
+  <img src="docs/screenshots/detail.png" alt="Rest-stop detail with live map, distance, ETA, and Google/Apple/Waze handoff" width="320" />
+</p>
+
 ## Coverage
 
 MVP supports motorways and trunk roads in:
@@ -20,7 +26,7 @@ MVP supports motorways and trunk roads in:
 - **Backend:** Go (chi router), Redis cache.
 - **Frontend:** SvelteKit PWA, embedded into the Go binary.
 - **Data:** OpenStreetMap via the Overpass API. Country datasets are refreshed weekly into Redis.
-- **Deploy:** Helm chart + Kubernetes (Gateway API HTTPRoute), released via goreleaser.
+- **Deploy:** Helm chart + Kubernetes (`ingress-nginx` + cert-manager), released via goreleaser.
 
 No accounts. No tracking. The browser asks for geolocation; the backend never stores per-user data.
 
