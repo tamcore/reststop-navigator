@@ -7,13 +7,26 @@ import (
 	"github.com/tamcore/reststop-navigator/internal/geo"
 )
 
-// Stop is a parsed OSM rest-stop element (highway=services|rest_area).
+// AmenityFlags is the per-stop boolean availability set, computed at hydrate
+// time from co-located amenity nodes and the stop's own tags.
+type AmenityFlags struct {
+	Fuel        bool `json:"fuel"`
+	Charging    bool `json:"charging"`
+	Food        bool `json:"food"`
+	Toilets     bool `json:"toilets"`
+	Open24h     bool `json:"open24h"`
+	DogFriendly bool `json:"dog"`
+}
+
+// Stop is a parsed OSM rest-stop element (highway=services|rest_area). The
+// Amenities field is populated by EnrichDataset, not Decode.
 type Stop struct {
-	OSMID int64             `json:"osm_id"`
-	Kind  string            `json:"kind"` // services|rest_area
-	Pos   geo.LatLng        `json:"pos"`
-	Name  string            `json:"name,omitempty"`
-	Tags  map[string]string `json:"tags,omitempty"`
+	OSMID     int64             `json:"osm_id"`
+	Kind      string            `json:"kind"` // services|rest_area
+	Pos       geo.LatLng        `json:"pos"`
+	Name      string            `json:"name,omitempty"`
+	Tags      map[string]string `json:"tags,omitempty"`
+	Amenities AmenityFlags      `json:"amenities"`
 }
 
 // AmenityNode is a parsed OSM amenity element (fuel, charging_station, …).

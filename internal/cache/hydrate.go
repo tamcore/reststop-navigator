@@ -44,6 +44,7 @@ func (h *Hydrator) HydrateCountry(ctx context.Context, c overpass.CountryISO) er
 	if err != nil {
 		return fmt.Errorf("hydrate %q: %w", c, err)
 	}
+	overpass.EnrichDataset(&ds)
 	ds.Country = c
 	ds.Version = strconv.FormatInt(h.now().Unix(), 10)
 
