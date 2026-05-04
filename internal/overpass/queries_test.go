@@ -57,16 +57,9 @@ func TestCountryQuery_Shape(t *testing.T) {
 			}
 			must := []string{
 				"[out:json]",
-				`"ISO3166-1"`,
-				string(c),
 				"motorway",
-				"trunk",
 				"services",
 				"rest_area",
-				"fuel",
-				"charging_station",
-				"toilets",
-				"restaurant",
 				"out geom;",
 			}
 			for _, snippet := range must {

@@ -28,27 +28,35 @@ func NewHydrator(client *overpass.Client, c *Redis) *Hydrator {
 	}
 }
 
-// HydrateCountry fetches the country's dataset from Overpass and stores it in
-// the cache. On Overpass failure the prior cached version is left untouched
-// (two-key swap semantics in the cache layer).
+// HydrateCountry fetches the country's dataset from Overpass in 4 quadrant
+// sub-bboxes and stores the merged result in the cache. On Overpass failure
+// for any sub-bbox the entire country hydrate is aborted and the prior cached
+// version is left untouched.
 func (h *Hydrator) HydrateCountry(ctx context.Context, c overpass.CountryISO) error {
-	q, err := overpass.CountryQuery(c)
+	bboxes, err := overpass.CountryBBoxes(c)
 	if err != nil {
 		return err
 	}
-	raw, err := h.client.Query(ctx, q)
-	if err != nil {
-		return fmt.Errorf("hydrate %q: %w", c, err)
-	}
-	ds, err := overpass.Decode(raw)
-	if err != nil {
-		return fmt.Errorf("hydrate %q: %w", c, err)
-	}
-	overpass.EnrichDataset(&ds)
-	ds.Country = c
-	ds.Version = strconv.FormatInt(h.now().Unix(), 10)
 
-	if err := h.cache.WriteDataset(ctx, ds); err != nil {
+	merged := overpass.Dataset{Country: c}
+	for i, bb := range bboxes {
+		raw, err := h.client.Query(ctx, overpass.BBoxQuery(bb))
+		if err != nil {
+			return fmt.Errorf("hydrate %q quadrant %d: %w", c, i, err)
+		}
+		part, err := overpass.Decode(raw)
+		if err != nil {
+			return fmt.Errorf("hydrate %q quadrant %d: %w", c, i, err)
+		}
+		merged.Ways = append(merged.Ways, part.Ways...)
+		merged.Stops = append(merged.Stops, part.Stops...)
+		merged.Amenities = append(merged.Amenities, part.Amenities...)
+	}
+
+	overpass.EnrichDataset(&merged)
+	merged.Version = strconv.FormatInt(h.now().Unix(), 10)
+
+	if err := h.cache.WriteDataset(ctx, merged); err != nil {
 		return fmt.Errorf("hydrate %q: %w", c, err)
 	}
 	return nil

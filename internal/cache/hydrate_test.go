@@ -71,10 +71,13 @@ func TestHydrateCountry_WritesDataset(t *testing.T) {
 	if got.Version == "" {
 		t.Error("version should be set after hydrate")
 	}
-	if len(got.Ways) != 1 || got.Ways[0].Ref != "A8" {
+	// HydrateCountry now fans out to 4 quadrant sub-bboxes; the stub returns
+	// the same fixture for every query, so the merged result holds 4x the
+	// elements. Assert non-empty + correct shape rather than exact counts.
+	if len(got.Ways) == 0 || got.Ways[0].Ref != "A8" {
 		t.Errorf("ways: %+v", got.Ways)
 	}
-	if len(got.Stops) != 1 || got.Stops[0].Name != "Aichen" {
+	if len(got.Stops) == 0 || got.Stops[0].Name != "Aichen" {
 		t.Errorf("stops: %+v", got.Stops)
 	}
 }
@@ -121,7 +124,9 @@ func TestHydrateAll_PerCountryFailureDoesNotAbortOthers(t *testing.T) {
 
 	c, h := setupHydratorEnv(t, func(w http.ResponseWriter, r *http.Request) {
 		body := r.PostFormValue("data")
-		if strings.Contains(body, `"AT"`) {
+		// AT is uniquely identifiable by its southern latitude (46.37);
+		// DE/SK/CZ all start north of 47.27.
+		if strings.Contains(body, "46.37") {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
