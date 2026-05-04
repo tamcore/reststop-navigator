@@ -23,13 +23,16 @@ service:
 ingress:
   enabled: true
   className: nginx
-  annotations: {}
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
   hosts:
     - restops.85.215.177.78.meh.wf
   tls: []
   # Example with cert-manager:
   # annotations:
   #   cert-manager.io/cluster-issuer: letsencrypt-prod
+  #   nginx.ingress.kubernetes.io/ssl-redirect: "true"
   # tls:
   #   - secretName: reststop-navigator-tls
   #     hosts:
