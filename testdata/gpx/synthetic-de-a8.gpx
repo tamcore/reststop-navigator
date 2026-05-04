@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="reststop-navigator-synthetic"
+     xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>Synthetic A8 east-bound (Munich area)</name>
+    <trkseg>
+      <trkpt lat="48.000" lon="11.000"><time>2026-01-01T08:00:00Z</time></trkpt>
+      <trkpt lat="48.000" lon="11.002"><time>2026-01-01T08:00:05Z</time></trkpt>
+      <trkpt lat="48.000" lon="11.004"><time>2026-01-01T08:00:10Z</time></trkpt>
+      <trkpt lat="48.000" lon="11.006"><time>2026-01-01T08:00:15Z</time></trkpt>
+      <trkpt lat="48.000" lon="11.008"><time>2026-01-01T08:00:20Z</time></trkpt>
+      <trkpt lat="48.000" lon="11.010"><time>2026-01-01T08:00:25Z</time></trkpt>
+      <trkpt lat="48.000" lon="11.012"><time>2026-01-01T08:00:30Z</time></trkpt>
+      <trkpt lat="48.000" lon="11.014"><time>2026-01-01T08:00:35Z</time></trkpt>
+      <trkpt lat="48.000" lon="11.016"><time>2026-01-01T08:00:40Z</time></trkpt>
+      <trkpt lat="48.000" lon="11.018"><time>2026-01-01T08:00:45Z</time></trkpt>
+      <trkpt lat="48.000" lon="11.020"><time>2026-01-01T08:00:50Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>
