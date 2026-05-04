@@ -12,10 +12,17 @@ help: ## Show this help message
 	@echo ""
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
-build: ## Build the reststop-navigator binary
+build: ## Build the reststop-navigator binary (without embedded frontend)
 	@echo "Building reststop-navigator..."
 	@go build -ldflags "$(LDFLAGS)" -o bin/reststop-navigator ./cmd/server
 	@echo "Binary built: bin/reststop-navigator"
+
+build-prod: ## Build the production binary with the SvelteKit frontend embedded
+	@echo "Building frontend..."
+	@cd web && npm ci --silent && npm run build
+	@echo "Building reststop-navigator with embedded frontend..."
+	@go build -ldflags "$(LDFLAGS)" -tags prodfrontend -o bin/reststop-navigator ./cmd/server
+	@echo "Binary built: bin/reststop-navigator (with frontend)"
 
 fmt: ## Run go fmt
 	go fmt ./...

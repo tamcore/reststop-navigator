@@ -9,6 +9,7 @@ import (
 
 	"github.com/tamcore/reststop-navigator/internal/api/handlers"
 	"github.com/tamcore/reststop-navigator/internal/api/middleware"
+	"github.com/tamcore/reststop-navigator/web"
 )
 
 // NewRouter returns the public HTTP handler. Routes live under /api.
@@ -26,6 +27,23 @@ func NewRouter(stopsSvc handlers.StopsService) http.Handler {
 
 	if stopsSvc != nil {
 		handlers.NewStops(stopsSvc).Mount(r)
+	}
+
+	// Mount the embedded frontend at root, when present. Built without the
+	// prodfrontend tag, web.FS is nil and we just serve a friendly note.
+	if web.Available() {
+		fs := http.FileServer(http.FS(web.FS))
+		// SPA fallback: any non-/api/ path that doesn't resolve to a static
+		// file gets index.html.
+		r.NotFound(func(w http.ResponseWriter, req *http.Request) {
+			fs.ServeHTTP(w, req)
+		})
+	} else {
+		r.Get("/", func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			_, _ = w.Write([]byte(`<!doctype html><meta charset=utf-8><title>reststop-navigator</title>` +
+				`<p>Backend running. Frontend not embedded (build without -tags prodfrontend).</p>`))
+		})
 	}
 	return r
 }
