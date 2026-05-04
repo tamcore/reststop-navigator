@@ -95,3 +95,35 @@ func TestSPAFallbackServesIndexForUnknownPath(t *testing.T) {
 		t.Errorf("body = %q, want %q", body, indexBody)
 	}
 }
+
+// TestSPAFallbackPreservesRealAssets guards against a regression where the
+// SPA fallback rewrote *every* path to "/", which would break JS/CSS bundles.
+// A real asset under the FS must be served verbatim, not the index.html.
+func TestSPAFallbackPreservesRealAssets(t *testing.T) {
+	const assetBody = "console.log('hydrate');"
+	web.FS = fstest.MapFS{
+		"index.html":          &fstest.MapFile{Data: []byte("<html>shell</html>")},
+		"_app/immutable/x.js": &fstest.MapFile{Data: []byte(assetBody)},
+	}
+	t.Cleanup(func() { web.FS = nil })
+
+	srv := httptest.NewServer(api.NewRouter(nil))
+	t.Cleanup(srv.Close)
+
+	resp, err := http.Get(srv.URL + "/_app/immutable/x.js")
+	if err != nil {
+		t.Fatalf("GET asset: %v", err)
+	}
+	t.Cleanup(func() { _ = resp.Body.Close() })
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	if string(body) != assetBody {
+		t.Errorf("body = %q, want raw asset %q (rewrite leaked into asset paths)", body, assetBody)
+	}
+}

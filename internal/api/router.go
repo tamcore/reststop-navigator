@@ -3,6 +3,7 @@ package api
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
@@ -34,10 +35,14 @@ func NewRouter(stopsSvc handlers.StopsService) http.Handler {
 	// prodfrontend tag, web.FS is nil and we just serve a friendly note.
 	if web.Available() {
 		fs := http.FileServer(http.FS(web.FS))
-		// SPA fallback: any non-/api/ path that doesn't resolve to a static
-		// file gets index.html, so client-side routing (e.g. /stop/<id>)
-		// works on direct loads and refreshes.
+		// Real static assets (JS bundles, CSS, fonts, favicons) are served
+		// as-is. Unknown non-/api paths fall back to index.html so that
+		// client-side routes like /stop/<id> work on direct load / refresh.
 		r.NotFound(func(w http.ResponseWriter, req *http.Request) {
+			if hasEmbeddedFile(req.URL.Path) {
+				fs.ServeHTTP(w, req)
+				return
+			}
 			req2 := req.Clone(req.Context())
 			req2.URL.Path = "/"
 			req2.URL.RawPath = ""
@@ -57,4 +62,23 @@ func healthz(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(`{"status":"ok"}`))
+}
+
+// hasEmbeddedFile reports whether urlPath maps to an existing file inside the
+// embedded frontend FS. Used by the SPA fallback to distinguish "real asset
+// 404'd by chi for some other reason" from "unknown client-side route".
+func hasEmbeddedFile(urlPath string) bool {
+	if web.FS == nil {
+		return false
+	}
+	p := strings.TrimPrefix(urlPath, "/")
+	if p == "" {
+		return false
+	}
+	f, err := web.FS.Open(p)
+	if err != nil {
+		return false
+	}
+	_ = f.Close()
+	return true
 }
