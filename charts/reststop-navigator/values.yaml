@@ -28,22 +28,18 @@ ingress:
   # template can reference it from spec.tls.
   certManagerIssuer: letsencrypt-prod
   annotations: {}
-  hosts:
-    - restops.85.215.177.78.meh.wf
-  tls:
-    - hosts:
-        - restops.85.215.177.78.meh.wf
+  # Override hosts/tls at deploy time, e.g.
+  #   --set ingress.hosts[0]=<your-fqdn>
+  #   --set ingress.tls[0].hosts[0]=<your-fqdn>
+  hosts: []
+  tls: []
 
-# Gateway API HTTPRoute is no longer the default (the prod cluster's wildcard
-# DNS *.85.215.177.78.meh.wf points at the ingress-controller, not a Gateway).
-# Set httpRoute.enabled=true to opt back in.
+# Gateway API HTTPRoute is opt-in. Override hostnames and parentRefs at deploy
+# time via --set when enabling.
 httpRoute:
   enabled: false
-  hostnames:
-    - restops.85.215.177.78.meh.wf
-  parentRefs:
-    - name: nginx
-      namespace: nginx-gateway
+  hostnames: []
+  parentRefs: []
 
 env:
   RESTSTOP_LISTEN_ADDR: ":8080"

@@ -5,10 +5,11 @@ BRANCH  := $$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)
 
 LDFLAGS := -s -w
 
-IMAGE_REGISTRY ?= reg.meh.wf
+IMAGE_REGISTRY ?=
 IMAGE_NAME     ?= reststop-navigator
 IMAGE_TAG      ?= dev
 DEPLOY_NS      ?= reststop-navigator
+INGRESS_HOST   ?=
 
 .PHONY: help build test lint fmt vet golangci-lint helm-lint goreleaser-check coverage clean dev-deploy-k8s
 
@@ -58,6 +59,8 @@ clean: ## Remove build artifacts
 	rm -rf bin/ coverage.out coverage.html dist/
 
 dev-deploy-k8s: ## Build dev image, push to IMAGE_REGISTRY, deploy to K8s namespace DEPLOY_NS
+	@if [ -z "$(IMAGE_REGISTRY)" ]; then echo "ERROR: IMAGE_REGISTRY is not set. See AGENTS.md.local for dev deployment env vars."; exit 1; fi
+	@if [ -z "$(INGRESS_HOST)" ]; then echo "ERROR: INGRESS_HOST is not set. See AGENTS.md.local for dev deployment env vars."; exit 1; fi
 	@echo "Building dev image..."
 	@docker build \
 		--target app \
@@ -80,6 +83,8 @@ dev-deploy-k8s: ## Build dev image, push to IMAGE_REGISTRY, deploy to K8s namesp
 		--set image.repository="$(IMAGE_REGISTRY)/$(IMAGE_NAME)" \
 		--set image.tag="$(IMAGE_TAG)" \
 		--set image.digest="$$IMAGE_DIGEST" \
+		--set ingress.hosts[0]="$(INGRESS_HOST)" \
+		--set ingress.tls[0].hosts[0]="$(INGRESS_HOST)" \
 	| kubectl apply -n $(DEPLOY_NS) -f - --wait
 	@echo ""
 	@echo "Deployment dispatched. Watch:"
