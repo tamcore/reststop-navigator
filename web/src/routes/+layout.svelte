@@ -1,5 +1,6 @@
 <script lang="ts">
 	import '../styles/global.css';
+	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	let { children } = $props();
 </script>
 
@@ -8,6 +9,7 @@
 		<span class="brand-mark">▣</span>
 		<span class="brand-name">RESTSTOP NAVIGATOR</span>
 	</a>
+	<ThemeToggle />
 </header>
 
 <main>
@@ -25,11 +27,15 @@
 		position: sticky;
 		top: 0;
 		padding: 0.75rem 1rem;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
 		background: linear-gradient(
 			180deg,
-			rgba(6, 9, 18, 0.95) 0%,
-			rgba(6, 9, 18, 0.85) 70%,
-			rgba(6, 9, 18, 0)
+			color-mix(in srgb, var(--bg) 95%, transparent) 0%,
+			color-mix(in srgb, var(--bg) 85%, transparent) 70%,
+			color-mix(in srgb, var(--bg) 0%, transparent)
 		);
 		backdrop-filter: blur(8px) saturate(140%);
 		-webkit-backdrop-filter: blur(8px) saturate(140%);

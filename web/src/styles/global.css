@@ -10,7 +10,7 @@
 :root {
 	color-scheme: dark;
 
-	/* Surface palette — midnight ink with elevated planes. */
+	/* DARK theme — midnight ink with elevated planes. */
 	--bg: #060912;
 	--bg-elev: #0c1220;
 	--surface: #121a2c;
@@ -18,19 +18,97 @@
 	--border: #1f2c47;
 	--border-strong: #2c3d62;
 
-	/* Type — bone white, never pure. */
 	--text: #f0eee5;
 	--text-strong: #fffefa;
 	--muted: #8a96b0;
 	--muted-2: #5b6685;
 
-	/* Accents — Autobahn green primary, Verkehrsblau cool, signal amber. */
 	--accent: #2ee27a;
 	--accent-strong: #14b25b;
 	--accent-glow: rgba(46, 226, 122, 0.18);
 	--cool: #4d7cff;
 	--amber: #ffb547;
 	--danger: #ff6470;
+
+	--lane-stripe: rgba(46, 226, 122, 0.05);
+	--bg-radial-top: #0e1a36;
+	--bg-radial-bot: #0a1226;
+}
+
+/* AUTO mode — fall back to light tokens when the OS prefers light. */
+@media (prefers-color-scheme: light) {
+	:root:not([data-theme]) {
+		color-scheme: light;
+		--bg: #f3f1ea;
+		--bg-elev: #ffffff;
+		--surface: #ffffff;
+		--surface-2: #f7f6f1;
+		--border: #e2e0d6;
+		--border-strong: #c8c5b9;
+		--text: #0c1220;
+		--text-strong: #000000;
+		--muted: #5a6478;
+		--muted-2: #8a96b0;
+		--accent: #16a34a;
+		--accent-strong: #0e8a45;
+		--accent-glow: rgba(20, 178, 91, 0.22);
+		--cool: #1d4ed8;
+		--amber: #d97706;
+		--danger: #dc2626;
+		--lane-stripe: rgba(20, 178, 91, 0.06);
+		--bg-radial-top: #fdfcf6;
+		--bg-radial-bot: #eceadf;
+	}
+}
+
+/* Explicit overrides — beat any auto-mode media query. */
+:root[data-theme='dark'] {
+	color-scheme: dark;
+	--bg: #060912;
+	--bg-elev: #0c1220;
+	--surface: #121a2c;
+	--surface-2: #1a2438;
+	--border: #1f2c47;
+	--border-strong: #2c3d62;
+	--text: #f0eee5;
+	--text-strong: #fffefa;
+	--muted: #8a96b0;
+	--muted-2: #5b6685;
+	--accent: #2ee27a;
+	--accent-strong: #14b25b;
+	--accent-glow: rgba(46, 226, 122, 0.18);
+	--cool: #4d7cff;
+	--amber: #ffb547;
+	--danger: #ff6470;
+	--lane-stripe: rgba(46, 226, 122, 0.05);
+	--bg-radial-top: #0e1a36;
+	--bg-radial-bot: #0a1226;
+}
+
+:root[data-theme='light'] {
+	color-scheme: light;
+	--bg: #f3f1ea;
+	--bg-elev: #ffffff;
+	--surface: #ffffff;
+	--surface-2: #f7f6f1;
+	--border: #e2e0d6;
+	--border-strong: #c8c5b9;
+	--text: #0c1220;
+	--text-strong: #000000;
+	--muted: #5a6478;
+	--muted-2: #8a96b0;
+	--accent: #16a34a;
+	--accent-strong: #0e8a45;
+	--accent-glow: rgba(20, 178, 91, 0.22);
+	--cool: #1d4ed8;
+	--amber: #d97706;
+	--danger: #dc2626;
+	--lane-stripe: rgba(20, 178, 91, 0.06);
+	--bg-radial-top: #fdfcf6;
+	--bg-radial-bot: #eceadf;
+}
+
+:root {
 
 	/* Type stack. */
 	--font-display: 'Antonio', 'Saira Condensed', system-ui, sans-serif;
@@ -58,14 +136,15 @@ body {
 	font-family: var(--font-body);
 	font-feature-settings: 'ss01', 'cv11';
 	background:
-		radial-gradient(80% 60% at 50% 0%, #0e1a36 0%, transparent 70%),
-		radial-gradient(60% 40% at 50% 110%, #0a1226 0%, transparent 70%),
+		radial-gradient(80% 60% at 50% 0%, var(--bg-radial-top) 0%, transparent 70%),
+		radial-gradient(60% 40% at 50% 110%, var(--bg-radial-bot) 0%, transparent 70%),
 		var(--bg);
 	background-attachment: fixed;
 	color: var(--text);
 	min-height: 100dvh;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
+	transition: background 0.3s var(--ease-out), color 0.3s var(--ease-out);
 }
 
 /* Faint motorway lane-stripe overlay, fixed, masked to the viewport centre. */

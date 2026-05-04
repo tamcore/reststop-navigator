@@ -7,6 +7,17 @@
 		<meta name="description" content="Find upcoming highway rest stops on your route - fuel, EV charging, food, toilets, dog-friendly. Works in DE, AT, SK, CZ." />
 		<link rel="manifest" href="/manifest.webmanifest" />
 		<title>Reststop Navigator</title>
+		<script>
+			(function () {
+				try {
+					var m = document.cookie.match(/(?:^|;\s*)reststop-theme=(auto|light|dark)/);
+					var t = m && m[1];
+					if (t === 'light' || t === 'dark') {
+						document.documentElement.setAttribute('data-theme', t);
+					}
+				} catch (_) {}
+			})();
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
