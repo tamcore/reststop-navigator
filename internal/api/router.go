@@ -35,9 +35,13 @@ func NewRouter(stopsSvc handlers.StopsService) http.Handler {
 	if web.Available() {
 		fs := http.FileServer(http.FS(web.FS))
 		// SPA fallback: any non-/api/ path that doesn't resolve to a static
-		// file gets index.html.
+		// file gets index.html, so client-side routing (e.g. /stop/<id>)
+		// works on direct loads and refreshes.
 		r.NotFound(func(w http.ResponseWriter, req *http.Request) {
-			fs.ServeHTTP(w, req)
+			req2 := req.Clone(req.Context())
+			req2.URL.Path = "/"
+			req2.URL.RawPath = ""
+			fs.ServeHTTP(w, req2)
 		})
 	} else {
 		r.Get("/", func(w http.ResponseWriter, _ *http.Request) {
