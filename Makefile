@@ -83,4 +83,4 @@ dev-deploy-k8s: ## Build dev image, push to IMAGE_REGISTRY, deploy to K8s namesp
 	| kubectl apply -n $(DEPLOY_NS) -f - --wait
 	@echo ""
 	@echo "Deployment dispatched. Watch:"
-	@echo "  kubectl -n $(DEPLOY_NS) rollout status deploy/reststop-navigator-reststop-navigator"
+	@echo "  kubectl -n $(DEPLOY_NS) rollout status deploy/reststop-navigator"
