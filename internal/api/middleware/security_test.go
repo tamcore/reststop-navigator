@@ -25,7 +25,7 @@ func TestSecurityHeaders_AppliesAll(t *testing.T) {
 		"X-Frame-Options":         "DENY",
 		"Referrer-Policy":         "no-referrer",
 		"Permissions-Policy":      "geolocation=(self)",
-		"Content-Security-Policy": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; connect-src 'self'; manifest-src 'self'",
+		"Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; connect-src 'self'; manifest-src 'self'",
 	}
 	for k, v := range want {
 		if got := rec.Header().Get(k); got != v {
