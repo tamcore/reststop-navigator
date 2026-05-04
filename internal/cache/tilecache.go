@@ -15,10 +15,10 @@ import (
 	"github.com/tamcore/reststop-navigator/internal/overpass"
 )
 
-// tileSizeDeg is the side length of one tile in degrees. ~111 km lat × ~74 km
-// lon at 48N — large enough to amortize Overpass calls, small enough that each
-// query fits comfortably under the server's 180s timeout.
-const tileSizeDeg = 1.0
+// tileSizeDeg is the side length of one tile in degrees. ~55 km lat × ~37 km
+// lon at 48N — small enough that an unprimed Overpass fetch stays under
+// ~5 s, big enough to give the matcher 30+ km of motorway ahead of the user.
+const tileSizeDeg = 0.5
 
 // OverpassFetcher is the subset of *overpass.Client that TileCache needs.
 type OverpassFetcher interface {
@@ -68,25 +68,12 @@ func TileFor(pos geo.LatLng) Tile {
 	}
 }
 
-// TilesAround returns the 4 tiles closest to pos (the tile pos is in plus its
-// 3 neighbours toward whichever quadrant pos lies in). This way the matcher
-// always has data for the next ~80–100 km of motorway regardless of which
-// way the user is heading.
+// TilesAround returns the tile pos is in. We deliberately return just one
+// tile so the first request after a cold cache hits at most one Overpass
+// query (~3–5 s for a 0.5° tile). As the user moves, neighbouring tiles
+// get pulled in lazily on subsequent ticks.
 func TilesAround(pos geo.LatLng) []Tile {
-	t := TileFor(pos)
-	dLat, dLon := tileSizeDeg, tileSizeDeg
-	if pos.Lat-t.South < tileSizeDeg/2 {
-		dLat = -tileSizeDeg
-	}
-	if pos.Lon-t.West < tileSizeDeg/2 {
-		dLon = -tileSizeDeg
-	}
-	return []Tile{
-		t,
-		{South: t.South + dLat, West: t.West},
-		{South: t.South, West: t.West + dLon},
-		{South: t.South + dLat, West: t.West + dLon},
-	}
+	return []Tile{TileFor(pos)}
 }
 
 // BBox converts the tile to an Overpass bbox.
