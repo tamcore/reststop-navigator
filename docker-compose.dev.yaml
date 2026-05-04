@@ -1,0 +1,32 @@
+services:
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+
+  stubbed-overpass:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: overpass
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: app
+    environment:
+      RESTSTOP_LISTEN_ADDR: ":8080"
+      RESTSTOP_REDIS_URL: "redis://redis:6379/0"
+      RESTSTOP_OVERPASS_ENDPOINTS: "http://stubbed-overpass:7000/"
+      RESTSTOP_REFRESH_INTERVAL: "1h"
+    ports:
+      - "8080:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+      stubbed-overpass:
+        condition: service_started

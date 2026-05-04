@@ -1,0 +1,77 @@
+{
+	"version": 0.6,
+	"generator": "stubbed-overpass",
+	"elements": [
+		{
+			"type": "way",
+			"id": 1001,
+			"tags": { "highway": "motorway", "oneway": "yes", "ref": "A8", "name": "Stuttgart - Munchen" },
+			"geometry": [
+				{ "lat": 48.000, "lon": 11.000 },
+				{ "lat": 48.000, "lon": 11.005 },
+				{ "lat": 48.000, "lon": 11.010 },
+				{ "lat": 48.000, "lon": 11.015 },
+				{ "lat": 48.000, "lon": 11.020 }
+			]
+		},
+		{
+			"type": "way",
+			"id": 1002,
+			"tags": { "highway": "motorway", "oneway": "yes", "ref": "A8", "name": "Munchen - Stuttgart" },
+			"geometry": [
+				{ "lat": 48.001, "lon": 11.020 },
+				{ "lat": 48.001, "lon": 11.015 },
+				{ "lat": 48.001, "lon": 11.010 },
+				{ "lat": 48.001, "lon": 11.005 },
+				{ "lat": 48.001, "lon": 11.000 }
+			]
+		},
+		{
+			"type": "node",
+			"id": 2001,
+			"lat": 48.000,
+			"lon": 11.0075,
+			"tags": {
+				"highway": "services",
+				"name": "Rasthof Aichen Sud",
+				"operator": "Tank & Rast",
+				"opening_hours": "24/7"
+			}
+		},
+		{
+			"type": "node",
+			"id": 2002,
+			"lat": 48.000,
+			"lon": 11.0125,
+			"tags": { "highway": "rest_area", "name": "Holledau" }
+		},
+		{
+			"type": "node",
+			"id": 2003,
+			"lat": 48.001,
+			"lon": 11.0075,
+			"tags": { "highway": "services", "name": "Rasthof Aichen Nord", "operator": "Tank & Rast" }
+		},
+		{
+			"type": "node",
+			"id": 3001,
+			"lat": 48.000,
+			"lon": 11.0078,
+			"tags": { "amenity": "fuel", "brand": "Aral" }
+		},
+		{
+			"type": "node",
+			"id": 3002,
+			"lat": 48.000,
+			"lon": 11.0073,
+			"tags": { "amenity": "charging_station", "capacity": "4" }
+		},
+		{
+			"type": "node",
+			"id": 3003,
+			"lat": 48.000,
+			"lon": 11.0076,
+			"tags": { "amenity": "restaurant", "name": "Burger Bar" }
+		}
+	]
+}

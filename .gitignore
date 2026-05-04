@@ -3,6 +3,9 @@
 /cmd/*/reststop-navigator*
 /cmd/*/main
 /cmd/*/replay
+/reststop-navigator
+/stubbedoverpass
+/replay
 *.exe
 *.exe~
 *.dll

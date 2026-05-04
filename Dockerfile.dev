@@ -1,0 +1,31 @@
+# syntax=docker/dockerfile:1
+# Multi-stage dev build used by docker-compose.dev.yaml + the e2e CI job.
+# Builds the SvelteKit frontend, compiles the Go binary with -tags prodfrontend.
+
+FROM node:24-alpine AS frontend
+WORKDIR /src
+COPY web/package.json web/package-lock.json ./
+RUN npm ci --silent
+COPY web ./
+RUN npm run build
+
+FROM golang:1.26-alpine AS backend
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . ./
+COPY --from=frontend /src/build ./web/build
+RUN CGO_ENABLED=0 go build -tags prodfrontend -ldflags "-s -w" -o /out/reststop-navigator ./cmd/server
+RUN CGO_ENABLED=0 go build -ldflags "-s -w" -o /out/stubbed-overpass ./cmd/stubbedoverpass
+
+FROM gcr.io/distroless/static-debian12:nonroot AS app
+COPY --from=backend /out/reststop-navigator /reststop-navigator
+EXPOSE 8080
+USER 65532:65532
+ENTRYPOINT ["/reststop-navigator"]
+
+FROM gcr.io/distroless/static-debian12:nonroot AS overpass
+COPY --from=backend /out/stubbed-overpass /stubbed-overpass
+EXPOSE 7000
+USER 65532:65532
+ENTRYPOINT ["/stubbed-overpass"]
