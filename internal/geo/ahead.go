@@ -85,38 +85,39 @@ func ProjectOntoWay(pos LatLng, w *Way) (WayProjection, bool) {
 	return best, true
 }
 
-// FilterAhead drops stops that aren't ahead of the user's projection along the
-// matched way and returns those that are sorted by ascending along-way
-// distance. m.Forward controls direction: true = travel in coord order,
-// false = reverse.
+// FilterAhead returns stops that lie ahead of the user along the matched
+// way's heading, ranked by straight-line distance.
+//
+// Computes the matched segment's bearing (reversed if the user is traversing
+// the way backwards) and keeps only stops whose displacement from the user
+// has a positive component in that direction. More robust than along-way
+// projection when stops are tagged on different OSM ways from the user's
+// matched motorway way (typical: rest areas on connector ways or as
+// stand-alone nodes off the carriageway).
 func FilterAhead(m Match, userPos LatLng, stops []StopOnWay) []AheadStop {
-	if m.Way == nil {
+	if m.Way == nil || len(m.Way.Coords) < m.SegmentIndex+2 {
 		return nil
 	}
-	userProj, ok := ProjectOntoWay(userPos, m.Way)
-	if !ok {
-		return nil
+	a, b := m.Way.Coords[m.SegmentIndex], m.Way.Coords[m.SegmentIndex+1]
+	if !m.Forward {
+		a, b = b, a
 	}
+	headingRad := degToRad(Bearing(a, b))
+	hx, hy := math.Sin(headingRad), math.Cos(headingRad)
+	mPerDegLat := math.Pi * earthRadiusMeters / 180
 
 	out := make([]AheadStop, 0, len(stops))
 	for _, s := range stops {
-		sp, ok := ProjectOntoWay(s.Pos, m.Way)
-		if !ok {
-			continue
-		}
-		var dist float64
-		if m.Forward {
-			dist = sp.Cumulative - userProj.Cumulative
-		} else {
-			dist = userProj.Cumulative - sp.Cumulative
-		}
-		if dist <= 0 {
+		midLatRad := degToRad((userPos.Lat + s.Pos.Lat) / 2)
+		dx := (s.Pos.Lon - userPos.Lon) * mPerDegLat * math.Cos(midLatRad)
+		dy := (s.Pos.Lat - userPos.Lat) * mPerDegLat
+		if dx*hx+dy*hy <= 0 {
 			continue
 		}
 		out = append(out, AheadStop{
 			StopID:   s.StopID,
 			Pos:      s.Pos,
-			Distance: dist,
+			Distance: Distance(userPos, s.Pos),
 		})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Distance < out[j].Distance })
