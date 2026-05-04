@@ -99,7 +99,7 @@
 	{:else if $geo.status === 'live' && !road}
 		<div class="hero-empty">
 			<span class="hero-empty-label">Standby</span>
-			<span class="hero-empty-msg">No motorway match yet — keep driving.</span>
+			<span class="hero-empty-msg">No motorway match yet.</span>
 		</div>
 	{:else if $geo.status === 'idle' || $geo.status === 'pending'}
 		<div class="hero-empty">
@@ -130,9 +130,38 @@
 {/if}
 
 {#if reason === 'outside-supported-area'}
-	<p class="muted">Outside MVP coverage (DE / AT / SK / CZ).</p>
+	<div class="info-panel">
+		<div class="info-title">Outside coverage</div>
+		<p>This MVP only tracks rest stops in 🇩🇪 Germany, 🇦🇹 Austria, 🇸🇰 Slovakia and 🇨🇿 Czechia.</p>
+	</div>
 {:else if reason === 'off-highway-or-wrong-direction'}
-	<p class="muted">No motorway match yet — keep driving.</p>
+	<div class="info-panel">
+		<div class="info-title">Waiting for motorway match</div>
+		<p>We only track motorways (Autobahnen). Keep driving until you're on one of these:</p>
+		<ul class="road-list">
+			<li>
+				<span class="flag">🇩🇪</span>
+				<span class="cat">Bundesautobahn</span>
+				<span class="prefix">A&nbsp;1 – A&nbsp;995</span>
+			</li>
+			<li>
+				<span class="flag">🇦🇹</span>
+				<span class="cat">Autobahn</span>
+				<span class="prefix">A&nbsp;1 – A&nbsp;26</span>
+			</li>
+			<li>
+				<span class="flag">🇸🇰</span>
+				<span class="cat">Diaľnica</span>
+				<span class="prefix">D&nbsp;1 – D&nbsp;4</span>
+			</li>
+			<li>
+				<span class="flag">🇨🇿</span>
+				<span class="cat">Dálnice</span>
+				<span class="prefix">D&nbsp;1 – D&nbsp;56</span>
+			</li>
+		</ul>
+		<p class="hint">Schnellstraßen / Bundesstraßen / city expressways aren't covered yet.</p>
+	</div>
 {:else if stops.length === 0 && !loading && $geo.status === 'live'}
 	<p class="muted">No upcoming stops match your filters.</p>
 {/if}
@@ -257,6 +286,74 @@
 	.error {
 		color: var(--danger);
 		padding: 0.25rem 0.25rem 0.5rem;
+	}
+
+	.info-panel {
+		padding: 1rem 1.1rem 1.1rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-card);
+		background:
+			radial-gradient(120% 100% at 0% 0%, rgba(77, 124, 255, 0.08), transparent 60%),
+			var(--surface);
+		margin-bottom: 0.75rem;
+	}
+	.info-title {
+		font-family: var(--font-display);
+		font-weight: 700;
+		font-size: 0.78rem;
+		letter-spacing: 0.22em;
+		text-transform: uppercase;
+		color: var(--cool);
+		margin-bottom: 0.5rem;
+	}
+	.info-panel p {
+		margin: 0 0 0.5rem;
+		color: var(--text);
+		font-size: 0.9rem;
+		line-height: 1.45;
+	}
+	.info-panel .hint {
+		color: var(--muted);
+		font-size: 0.8rem;
+		margin-top: 0.6rem;
+		margin-bottom: 0;
+	}
+	.road-list {
+		list-style: none;
+		padding: 0;
+		margin: 0.4rem 0 0;
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 0.4rem 0.75rem;
+	}
+	.road-list li {
+		display: grid;
+		grid-template-columns: 1.5rem 1fr;
+		grid-template-rows: auto auto;
+		column-gap: 0.5rem;
+		align-items: center;
+		padding: 0.45rem 0.6rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--bg-elev);
+	}
+	.flag {
+		grid-row: 1 / span 2;
+		font-size: 1.15rem;
+		line-height: 1;
+	}
+	.cat {
+		font-family: var(--font-display);
+		font-weight: 700;
+		font-size: 0.78rem;
+		letter-spacing: 0.16em;
+		text-transform: uppercase;
+		color: var(--text-strong);
+	}
+	.prefix {
+		font-family: var(--font-mono);
+		font-size: 0.72rem;
+		color: var(--accent);
 	}
 	.stop-list {
 		list-style: none;
