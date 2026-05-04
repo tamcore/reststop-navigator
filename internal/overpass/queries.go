@@ -71,9 +71,10 @@ func countryFullBBox(c CountryISO) BBox {
 	return BBox{}
 }
 
-// BBoxQuery returns the Overpass QL string that retrieves motorway ways and
-// rest-stop nodes/ways within the given bbox. Drops trunk and amenities to
-// keep payloads small enough for Overpass to deliver inside its 180s timeout.
+// BBoxQuery returns the Overpass QL string that retrieves motorway ways,
+// rest-stop nodes/ways, and the fuel + EV-charging amenity nodes within the
+// given bbox. Drops trunk and the heavier food/toilets amenities to keep
+// payloads small enough for Overpass to deliver inside its 180s timeout.
 func BBoxQuery(bb BBox) string {
 	var sb strings.Builder
 	fmt.Fprintln(&sb, "[out:json][timeout:120];")
@@ -81,6 +82,8 @@ func BBoxQuery(bb BBox) string {
 	fmt.Fprintf(&sb, "  way[\"highway\"=\"motorway\"](%g,%g,%g,%g);\n", bb.South, bb.West, bb.North, bb.East)
 	fmt.Fprintf(&sb, "  node[\"highway\"~\"^(services|rest_area)$\"](%g,%g,%g,%g);\n", bb.South, bb.West, bb.North, bb.East)
 	fmt.Fprintf(&sb, "  way[\"highway\"~\"^(services|rest_area)$\"](%g,%g,%g,%g);\n", bb.South, bb.West, bb.North, bb.East)
+	fmt.Fprintf(&sb, "  node[\"amenity\"=\"fuel\"](%g,%g,%g,%g);\n", bb.South, bb.West, bb.North, bb.East)
+	fmt.Fprintf(&sb, "  node[\"amenity\"=\"charging_station\"](%g,%g,%g,%g);\n", bb.South, bb.West, bb.North, bb.East)
 	fmt.Fprintln(&sb, ");")
 	fmt.Fprintln(&sb, "out geom;")
 	return sb.String()
