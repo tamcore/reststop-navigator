@@ -18,7 +18,7 @@ If `AGENTS.md.local` is missing, ask the user to populate it — do **not** infe
 
 The following are **PRIVATE** and must never appear in tracked files (Helm values, Makefiles, code comments, README, workflows, screenshots, commit messages):
 
-- The user's wildcard DNS suffix (`*.meh.wf` and any subdomain thereof).
+- The user's wildcard DNS suffix and any subdomain thereof (the actual suffix is named only in `AGENTS.md.local`).
 - Public IPs that resolve to user-owned infrastructure.
 - Internal registry hostnames.
 - The `kube-context` name used for the user's cluster.
