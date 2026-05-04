@@ -11,19 +11,20 @@ import (
 	"github.com/tamcore/reststop-navigator/internal/overpass"
 )
 
-// DatasetReader reads the cached dataset for a country.
-type DatasetReader interface {
-	ReadDataset(ctx context.Context, c overpass.CountryISO) (overpass.Dataset, error)
+// TileSource fetches the merged dataset for the tiles around a position.
+// Implemented by *cache.TileCache in production; faked in tests.
+type TileSource interface {
+	GetMerged(ctx context.Context, pos geo.LatLng) (overpass.Dataset, error)
 }
 
 // Service answers upcoming-stops queries.
 type Service struct {
-	reader DatasetReader
+	tiles TileSource
 }
 
 // NewService builds a Service.
-func NewService(r DatasetReader) *Service {
-	return &Service{reader: r}
+func NewService(tiles TileSource) *Service {
+	return &Service{tiles: tiles}
 }
 
 // Filters is the user-supplied amenity filter set. A true field means "must
@@ -119,7 +120,7 @@ func (s *Service) Upcoming(ctx context.Context, req UpcomingRequest) (UpcomingRe
 		return UpcomingResponse{Reason: "outside-supported-area", Stops: []StopInfo{}}, nil
 	}
 
-	ds, err := s.reader.ReadDataset(ctx, country)
+	ds, err := s.tiles.GetMerged(ctx, req.Pos)
 	if err != nil {
 		return UpcomingResponse{}, err
 	}
@@ -200,34 +201,37 @@ func (s *Service) Upcoming(ctx context.Context, req UpcomingRequest) (UpcomingRe
 }
 
 // Get returns the detail view for one stop. id is the public id form
-// "{osm_type}/{osm_id}" (e.g. "node/123"). All supported countries are
-// scanned in stable order until a match is found.
-func (s *Service) Get(ctx context.Context, id string) (DetailResponse, error) {
-	for _, c := range overpass.SupportedCountries() {
-		ds, err := s.reader.ReadDataset(ctx, c)
-		if err != nil {
-			continue // missing country dataset shouldn't block lookups in others
+// "{osm_type}/{osm_id}" (e.g. "node/123"). pos is the approximate location
+// to look in (typically the lat/lon the client already has from the
+// upcoming-stops list); the lookup scans the tiles around that position.
+func (s *Service) Get(ctx context.Context, id string, pos geo.LatLng) (DetailResponse, error) {
+	country := resolveCountry(pos)
+	if country == "" {
+		return DetailResponse{}, ErrStopNotFound
+	}
+	ds, err := s.tiles.GetMerged(ctx, pos)
+	if err != nil {
+		return DetailResponse{}, err
+	}
+	for _, st := range ds.Stops {
+		if stopID(st) != id {
+			continue
 		}
-		for _, st := range ds.Stops {
-			if stopID(st) != id {
-				continue
-			}
-			return DetailResponse{
-				Country: string(c),
-				Stop: StopInfo{
-					ID:           id,
-					Name:         st.Name,
-					Kind:         st.Kind,
-					Lat:          st.Pos.Lat,
-					Lon:          st.Pos.Lon,
-					Amenities:    st.Amenities,
-					OpeningHours: st.Tags["opening_hours"],
-					Operator:     st.Tags["operator"],
-				},
-				DeepLinks: deepLinks(st.Pos),
-				Tags:      st.Tags,
-			}, nil
-		}
+		return DetailResponse{
+			Country: string(country),
+			Stop: StopInfo{
+				ID:           id,
+				Name:         st.Name,
+				Kind:         st.Kind,
+				Lat:          st.Pos.Lat,
+				Lon:          st.Pos.Lon,
+				Amenities:    st.Amenities,
+				OpeningHours: st.Tags["opening_hours"],
+				Operator:     st.Tags["operator"],
+			},
+			DeepLinks: deepLinks(st.Pos),
+			Tags:      st.Tags,
+		}, nil
 	}
 	return DetailResponse{}, ErrStopNotFound
 }

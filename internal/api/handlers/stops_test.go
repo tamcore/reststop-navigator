@@ -13,15 +13,17 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/tamcore/reststop-navigator/internal/api/handlers"
+	"github.com/tamcore/reststop-navigator/internal/geo"
 	"github.com/tamcore/reststop-navigator/internal/overpass"
 	"github.com/tamcore/reststop-navigator/internal/stops"
 )
 
 type fakeService struct {
-	upcoming    func(stops.UpcomingRequest) (stops.UpcomingResponse, error)
-	get         func(string) (stops.DetailResponse, error)
-	gotRequest  *stops.UpcomingRequest
-	gotDetailID string
+	upcoming     func(stops.UpcomingRequest) (stops.UpcomingResponse, error)
+	get          func(string) (stops.DetailResponse, error)
+	gotRequest   *stops.UpcomingRequest
+	gotDetailID  string
+	gotDetailPos geo.LatLng
 }
 
 func (f *fakeService) Upcoming(_ context.Context, req stops.UpcomingRequest) (stops.UpcomingResponse, error) {
@@ -32,8 +34,9 @@ func (f *fakeService) Upcoming(_ context.Context, req stops.UpcomingRequest) (st
 	return stops.UpcomingResponse{Stops: []stops.StopInfo{}}, nil
 }
 
-func (f *fakeService) Get(_ context.Context, id string) (stops.DetailResponse, error) {
+func (f *fakeService) Get(_ context.Context, id string, pos geo.LatLng) (stops.DetailResponse, error) {
 	f.gotDetailID = id
+	f.gotDetailPos = pos
 	if f.get != nil {
 		return f.get(id)
 	}
@@ -181,7 +184,7 @@ func TestDetail_HappyPath(t *testing.T) {
 	srv := mountServer(handlers.NewStops(fs))
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Get(srv.URL + "/api/stops/detail?id=node/100")
+	resp, err := http.Get(srv.URL + "/api/stops/detail?id=node/100&lat=48&lon=11.005")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,7 +211,7 @@ func TestDetail_NotFound404(t *testing.T) {
 	srv := mountServer(handlers.NewStops(&fakeService{}))
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Get(srv.URL + "/api/stops/detail?id=node/missing")
+	resp, err := http.Get(srv.URL + "/api/stops/detail?id=node/missing&lat=48&lon=11.005")
 	if err != nil {
 		t.Fatal(err)
 	}

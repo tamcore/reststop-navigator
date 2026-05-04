@@ -25,7 +25,10 @@
 	];
 </script>
 
-<a class="card" href="/stop/{encodeURIComponent(stop.id)}">
+<a
+	class="card"
+	href="/stop/{encodeURIComponent(stop.id)}?lat={stop.lat}&lon={stop.lon}"
+>
 	<div class="row1">
 		<span class="name">{stop.name || 'Rest area'}</span>
 		<span class="dist">{distanceLabel(stop.distance_m)}</span>

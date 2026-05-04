@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
@@ -27,8 +26,8 @@ const (
 	shutdownTimeout = 10 * time.Second
 )
 
-// Run starts the HTTP server, kicks off the country-dataset hydrator, and
-// blocks until SIGINT/SIGTERM is received.
+// Run starts the HTTP server with on-demand tile-based caching and blocks
+// until SIGINT/SIGTERM is received.
 func Run() error {
 	cfg, err := config.Load()
 	if err != nil {
@@ -42,20 +41,9 @@ func Run() error {
 	rdb := redis.NewClient(rdbOpts)
 	defer func() { _ = rdb.Close() }()
 
-	c := cache.NewRedis(rdb)
 	overpassClient := overpass.NewClient(cfg.OverpassEndpoints)
-	hydrator := cache.NewHydrator(overpassClient, c)
-	stopsSvc := stops.NewService(c)
-
-	rootCtx, cancelRoot := context.WithCancel(context.Background())
-	defer cancelRoot()
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		hydrator.Run(rootCtx, cfg.RefreshInterval)
-	}()
+	tiles := cache.NewTileCache(rdb, overpassClient)
+	stopsSvc := stops.NewService(tiles)
 
 	srv := &http.Server{
 		Addr:              cfg.ListenAddr,
@@ -76,8 +64,6 @@ func Run() error {
 
 	select {
 	case err := <-errCh:
-		cancelRoot()
-		wg.Wait()
 		return err
 	case sig := <-stop:
 		slog.Info("shutdown signal received", "signal", sig.String())
@@ -85,12 +71,5 @@ func Run() error {
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
-
-	cancelRoot() // tell the hydrator to stop
-	if err := srv.Shutdown(shutdownCtx); err != nil {
-		wg.Wait()
-		return err
-	}
-	wg.Wait()
-	return nil
+	return srv.Shutdown(shutdownCtx)
 }

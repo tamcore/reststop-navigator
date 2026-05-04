@@ -11,12 +11,12 @@ import (
 	"github.com/tamcore/reststop-navigator/internal/stops"
 )
 
-type fakeReader struct {
+type fakeTiles struct {
 	ds  overpass.Dataset
 	err error
 }
 
-func (f fakeReader) ReadDataset(_ context.Context, _ overpass.CountryISO) (overpass.Dataset, error) {
+func (f fakeTiles) GetMerged(_ context.Context, _ geo.LatLng) (overpass.Dataset, error) {
 	if f.err != nil {
 		return overpass.Dataset{}, f.err
 	}
@@ -69,7 +69,7 @@ func straightEastA8DE() overpass.Dataset {
 
 func TestUpcoming_HappyPath(t *testing.T) {
 	t.Parallel()
-	svc := stops.NewService(fakeReader{ds: straightEastA8DE()})
+	svc := stops.NewService(fakeTiles{ds: straightEastA8DE()})
 	resp, err := svc.Upcoming(context.Background(), stops.UpcomingRequest{
 		Pos:     geo.LatLng{Lat: 48.000, Lon: 11.003},
 		Heading: 90,
@@ -112,7 +112,7 @@ func TestUpcoming_HappyPath(t *testing.T) {
 
 func TestUpcoming_FuelFilter(t *testing.T) {
 	t.Parallel()
-	svc := stops.NewService(fakeReader{ds: straightEastA8DE()})
+	svc := stops.NewService(fakeTiles{ds: straightEastA8DE()})
 	resp, err := svc.Upcoming(context.Background(), stops.UpcomingRequest{
 		Pos:     geo.LatLng{Lat: 48.000, Lon: 11.003},
 		Heading: 90,
@@ -130,7 +130,7 @@ func TestUpcoming_FuelFilter(t *testing.T) {
 
 func TestUpcoming_OutsideSupportedArea(t *testing.T) {
 	t.Parallel()
-	svc := stops.NewService(fakeReader{ds: straightEastA8DE()})
+	svc := stops.NewService(fakeTiles{ds: straightEastA8DE()})
 	resp, err := svc.Upcoming(context.Background(), stops.UpcomingRequest{
 		Pos:     geo.LatLng{Lat: 0, Lon: 0},
 		Heading: 90,
@@ -145,7 +145,7 @@ func TestUpcoming_OutsideSupportedArea(t *testing.T) {
 
 func TestUpcoming_OffHighway(t *testing.T) {
 	t.Parallel()
-	svc := stops.NewService(fakeReader{ds: straightEastA8DE()})
+	svc := stops.NewService(fakeTiles{ds: straightEastA8DE()})
 	resp, err := svc.Upcoming(context.Background(), stops.UpcomingRequest{
 		Pos:     geo.LatLng{Lat: 50.0, Lon: 11.0},
 		Heading: 90,
@@ -163,7 +163,7 @@ func TestUpcoming_OffHighway(t *testing.T) {
 
 func TestUpcoming_RespectsLimit(t *testing.T) {
 	t.Parallel()
-	svc := stops.NewService(fakeReader{ds: straightEastA8DE()})
+	svc := stops.NewService(fakeTiles{ds: straightEastA8DE()})
 	resp, err := svc.Upcoming(context.Background(), stops.UpcomingRequest{
 		Pos:     geo.LatLng{Lat: 48.000, Lon: 11.003},
 		Heading: 90,
@@ -180,7 +180,7 @@ func TestUpcoming_RespectsLimit(t *testing.T) {
 
 func TestUpcoming_DefaultLimitWhenZero(t *testing.T) {
 	t.Parallel()
-	svc := stops.NewService(fakeReader{ds: straightEastA8DE()})
+	svc := stops.NewService(fakeTiles{ds: straightEastA8DE()})
 	resp, err := svc.Upcoming(context.Background(), stops.UpcomingRequest{
 		Pos:     geo.LatLng{Lat: 48.000, Lon: 11.003},
 		Heading: 90,
@@ -196,7 +196,7 @@ func TestUpcoming_DefaultLimitWhenZero(t *testing.T) {
 
 func TestUpcoming_PropagatesReaderError(t *testing.T) {
 	t.Parallel()
-	svc := stops.NewService(fakeReader{err: errors.New("redis is down")})
+	svc := stops.NewService(fakeTiles{err: errors.New("redis is down")})
 	_, err := svc.Upcoming(context.Background(), stops.UpcomingRequest{
 		Pos:     geo.LatLng{Lat: 48.000, Lon: 11.003},
 		Heading: 90,
@@ -208,7 +208,7 @@ func TestUpcoming_PropagatesReaderError(t *testing.T) {
 
 func TestUpcoming_LowSpeedClampsETA(t *testing.T) {
 	t.Parallel()
-	svc := stops.NewService(fakeReader{ds: straightEastA8DE()})
+	svc := stops.NewService(fakeTiles{ds: straightEastA8DE()})
 	resp, err := svc.Upcoming(context.Background(), stops.UpcomingRequest{
 		Pos:     geo.LatLng{Lat: 48.000, Lon: 11.003},
 		Heading: 90,
@@ -225,8 +225,8 @@ func TestUpcoming_LowSpeedClampsETA(t *testing.T) {
 
 func TestGet_HappyPath(t *testing.T) {
 	t.Parallel()
-	svc := stops.NewService(fakeReader{ds: straightEastA8DE()})
-	got, err := svc.Get(context.Background(), "node/100")
+	svc := stops.NewService(fakeTiles{ds: straightEastA8DE()})
+	got, err := svc.Get(context.Background(), "node/100", geo.LatLng{Lat: 48.000, Lon: 11.0075})
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
@@ -249,8 +249,8 @@ func TestGet_HappyPath(t *testing.T) {
 
 func TestGet_NotFound(t *testing.T) {
 	t.Parallel()
-	svc := stops.NewService(fakeReader{ds: straightEastA8DE()})
-	_, err := svc.Get(context.Background(), "node/9999")
+	svc := stops.NewService(fakeTiles{ds: straightEastA8DE()})
+	_, err := svc.Get(context.Background(), "node/9999", geo.LatLng{Lat: 48.000, Lon: 11.005})
 	if !errors.Is(err, stops.ErrStopNotFound) {
 		t.Fatalf("err = %v, want ErrStopNotFound", err)
 	}

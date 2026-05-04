@@ -45,7 +45,11 @@ export function fetchUpcoming(params: UpcomingParams): Promise<UpcomingResponse>
 	return request<UpcomingResponse>(`/api/stops/upcoming?${q.toString()}`, { signal: params.signal });
 }
 
-export function fetchStopDetail(id: string, signal?: AbortSignal): Promise<DetailResponse> {
-	const q = new URLSearchParams({ id });
+export function fetchStopDetail(
+	id: string,
+	pos: { lat: number; lon: number },
+	signal?: AbortSignal
+): Promise<DetailResponse> {
+	const q = new URLSearchParams({ id, lat: String(pos.lat), lon: String(pos.lon) });
 	return request<DetailResponse>(`/api/stops/detail?${q.toString()}`, { signal });
 }

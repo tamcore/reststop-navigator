@@ -96,10 +96,12 @@ describe('fetchStopDetail', () => {
 		);
 		globalThis.fetch = fetchSpy as typeof fetch;
 
-		const out = await fetchStopDetail('node/100');
+		const out = await fetchStopDetail('node/100', { lat: 48, lon: 11.005 });
 		expect(out.stop.id).toBe('node/100');
 		const url = String(fetchSpy.mock.calls[0][0]);
 		expect(url).toContain('/api/stops/detail?');
 		expect(url).toContain('id=node%2F100');
+		expect(url).toContain('lat=48');
+		expect(url).toContain('lon=11.005');
 	});
 });

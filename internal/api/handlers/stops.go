@@ -19,7 +19,7 @@ import (
 // in production; faked in tests.
 type StopsService interface {
 	Upcoming(ctx context.Context, req stops.UpcomingRequest) (stops.UpcomingResponse, error)
-	Get(ctx context.Context, id string) (stops.DetailResponse, error)
+	Get(ctx context.Context, id string, pos geo.LatLng) (stops.DetailResponse, error)
 }
 
 // Stops bundles the upcoming + detail handlers.
@@ -84,13 +84,24 @@ func (h *Stops) upcoming(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Stops) detail(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("id")
+	q := r.URL.Query()
+	id := q.Get("id")
 	if id == "" {
 		writeError(w, http.StatusBadRequest, "id is required")
 		return
 	}
+	lat, err := requiredFloat(q, "lat")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	lon, err := requiredFloat(q, "lon")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
-	resp, err := h.svc.Get(r.Context(), id)
+	resp, err := h.svc.Get(r.Context(), id, geo.LatLng{Lat: lat, Lon: lon})
 	if err != nil {
 		if errors.Is(err, stops.ErrStopNotFound) {
 			writeError(w, http.StatusNotFound, "stop not found")

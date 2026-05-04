@@ -16,8 +16,15 @@
 			return;
 		}
 		const id = decodeURIComponent(raw);
+		const lat = parseFloat($page.url.searchParams.get('lat') ?? '');
+		const lon = parseFloat($page.url.searchParams.get('lon') ?? '');
+		if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+			error = 'Stop link is missing location.';
+			loading = false;
+			return;
+		}
 		try {
-			detail = await fetchStopDetail(id);
+			detail = await fetchStopDetail(id, { lat, lon });
 		} catch (err) {
 			if (err instanceof ApiError && err.status === 404) error = 'Stop not found.';
 			else if (err instanceof ApiError) error = err.message;
