@@ -10,6 +10,14 @@
 		open24h: '24/7',
 		dog: 'DOG'
 	};
+	const icons: Record<FilterKey, string> = {
+		fuel: '⛽',
+		charging: '⚡',
+		food: '🍴',
+		toilets: '🚻',
+		open24h: '🕐',
+		dog: '🐕'
+	};
 </script>
 
 <div class="chips" role="group" aria-label="amenity filters">
@@ -22,6 +30,7 @@
 			aria-pressed={active}
 			onclick={() => filters.toggle(key)}
 		>
+			<span class="chip-icon" aria-hidden="true">{icons[key]}</span>
 			<span class="chip-label">{labels[key]}</span>
 		</button>
 	{/each}
@@ -35,7 +44,10 @@
 		margin: 1rem 0 0.5rem;
 	}
 	.chip {
-		padding: 0.45rem 0.8rem 0.4rem;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0.4rem 0.8rem 0.35rem;
 		border-radius: 6px;
 		border: 1px solid var(--border);
 		background: linear-gradient(180deg, var(--surface), var(--bg-elev));
@@ -51,6 +63,15 @@
 			background 0.18s,
 			box-shadow 0.18s;
 		position: relative;
+	}
+	.chip-icon {
+		font-size: 0.95rem;
+		line-height: 1;
+		filter: grayscale(0.5);
+		transition: filter 0.18s;
+	}
+	.chip.active .chip-icon {
+		filter: none;
 	}
 	.chip:hover {
 		color: var(--text);

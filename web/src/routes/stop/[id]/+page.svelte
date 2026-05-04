@@ -135,7 +135,18 @@
 			maxZoom: 19
 		}).addTo(map);
 		L.control.attribution({ prefix: false }).addAttribution('© OSM').addTo(map);
-		stopMarker = L.marker([detail.stop.lat, detail.stop.lon]).addTo(map);
+		const stopIcon = L.divIcon({
+			className: 'rs-stop-pin',
+			html: `<svg viewBox="0 0 28 36" width="28" height="36" aria-hidden="true">
+				<path d="M14 0C6.3 0 0 6.3 0 14c0 10 14 22 14 22s14-12 14-22C28 6.3 21.7 0 14 0z"
+					fill="#2ee27a" stroke="rgba(6,9,18,0.7)" stroke-width="1.2"/>
+				<circle cx="14" cy="14" r="5" fill="#060912"/>
+			</svg>`,
+			iconSize: [28, 36],
+			iconAnchor: [14, 36],
+			popupAnchor: [0, -32]
+		});
+		stopMarker = L.marker([detail.stop.lat, detail.stop.lon], { icon: stopIcon }).addTo(map);
 
 		geo.start();
 		geoUnsub = geo.subscribe((s) => updateLive(s));
@@ -323,6 +334,11 @@
 		color: var(--muted);
 		backdrop-filter: blur(4px);
 		font-size: 10px;
+	}
+	.map :global(.rs-stop-pin) {
+		background: transparent;
+		border: 0;
+		filter: drop-shadow(0 4px 8px rgba(46, 226, 122, 0.35));
 	}
 
 	.live {
