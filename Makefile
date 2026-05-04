@@ -5,7 +5,12 @@ BRANCH  := $$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)
 
 LDFLAGS := -s -w
 
-.PHONY: help build test lint fmt vet golangci-lint helm-lint goreleaser-check coverage clean
+IMAGE_REGISTRY ?= reg.meh.wf
+IMAGE_NAME     ?= reststop-navigator
+IMAGE_TAG      ?= dev
+DEPLOY_NS      ?= reststop-navigator
+
+.PHONY: help build test lint fmt vet golangci-lint helm-lint goreleaser-check coverage clean dev-deploy-k8s
 
 help: ## Show this help message
 	@echo "Reststop Navigator - Make targets:"
@@ -51,3 +56,31 @@ coverage: test ## Print coverage by func and total
 
 clean: ## Remove build artifacts
 	rm -rf bin/ coverage.out coverage.html dist/
+
+dev-deploy-k8s: ## Build dev image, push to IMAGE_REGISTRY, deploy to K8s namespace DEPLOY_NS
+	@echo "Building dev image..."
+	@docker build \
+		--target app \
+		-t $(IMAGE_REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG) \
+		-f Dockerfile.dev \
+		.
+	@echo ""
+	@echo "Pushing to $(IMAGE_REGISTRY)..."
+	@docker push $(IMAGE_REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG)
+	@echo ""
+	@IMAGE_DIGEST=$$(docker inspect $(IMAGE_REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG) --format='{{index .RepoDigests 0}}' | cut -d'@' -f2); \
+	echo "Using digest: $$IMAGE_DIGEST"; \
+	echo ""; \
+	echo "Ensuring namespace $(DEPLOY_NS) exists..."; \
+	kubectl get namespace $(DEPLOY_NS) >/dev/null 2>&1 || kubectl create namespace $(DEPLOY_NS); \
+	echo ""; \
+	echo "Deploying to namespace $(DEPLOY_NS)..."; \
+	helm template reststop-navigator ./charts/reststop-navigator \
+		--namespace $(DEPLOY_NS) \
+		--set image.repository="$(IMAGE_REGISTRY)/$(IMAGE_NAME)" \
+		--set image.tag="$(IMAGE_TAG)" \
+		--set image.digest="$$IMAGE_DIGEST" \
+	| kubectl apply -n $(DEPLOY_NS) -f - --wait
+	@echo ""
+	@echo "Deployment dispatched. Watch:"
+	@echo "  kubectl -n $(DEPLOY_NS) rollout status deploy/reststop-navigator-reststop-navigator"
