@@ -1,0 +1,25 @@
+:root {
+	color-scheme: dark;
+	--bg: #0b1220;
+	--surface: #111a2c;
+	--text: #e6edf3;
+	--muted: #94a3b8;
+	--accent: #22c55e;
+	--accent-strong: #16a34a;
+	--border: #1f2937;
+	--danger: #f87171;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+button {
+	font: inherit;
+	color: inherit;
+	cursor: pointer;
+}
+
+a {
+	color: var(--accent);
+}
