@@ -50,10 +50,17 @@ type Dataset struct {
 
 // Decode parses an Overpass JSON response body into a Dataset. Country and
 // Version are left zero-valued — the caller (hydrator) sets them.
+//
+// Returns an error when the body carries an Overpass-level "remark" (e.g.
+// "runtime error: query timed out") rather than silently producing an empty
+// dataset.
 func Decode(raw []byte) (Dataset, error) {
 	var resp overpassResponse
 	if err := json.Unmarshal(raw, &resp); err != nil {
 		return Dataset{}, fmt.Errorf("overpass: decode json: %w", err)
+	}
+	if resp.Remark != "" {
+		return Dataset{}, fmt.Errorf("overpass: server reported: %s", resp.Remark)
 	}
 
 	var ds Dataset
@@ -118,6 +125,7 @@ func Decode(raw []byte) (Dataset, error) {
 
 type overpassResponse struct {
 	Elements []overpassElement `json:"elements"`
+	Remark   string            `json:"remark,omitempty"`
 }
 
 type overpassElement struct {
