@@ -18,9 +18,10 @@ import (
 // the bootstrap/init phase before the cache is hydrated.
 func NewRouter(stopsSvc handlers.StopsService) http.Handler {
 	r := chi.NewRouter()
-	r.Use(chimw.Recoverer)
 	r.Use(chimw.RequestID)
 	r.Use(chimw.RealIP)
+	r.Use(middleware.AccessLog)
+	r.Use(chimw.Recoverer)
 	r.Use(middleware.SecurityHeaders)
 
 	r.Get("/api/healthz", healthz)
