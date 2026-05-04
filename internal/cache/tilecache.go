@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -136,21 +137,36 @@ func (c *TileCache) Get(ctx context.Context, t Tile) (overpass.Dataset, error) {
 }
 
 // GetMerged returns the union of ds.{Ways,Stops,Amenities} across the 4 tiles
-// that pos's neighbourhood spans.
+// that pos's neighbourhood spans. Tile fetches run concurrently so a cold
+// 4-tile request takes the latency of one Overpass call, not four.
 func (c *TileCache) GetMerged(ctx context.Context, pos geo.LatLng) (overpass.Dataset, error) {
+	tiles := TilesAround(pos)
+	results := make([]overpass.Dataset, len(tiles))
+	errs := make([]error, len(tiles))
+
+	var wg sync.WaitGroup
+	for i, t := range tiles {
+		i, t := i, t
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			results[i], errs[i] = c.Get(ctx, t)
+		}()
+	}
+	wg.Wait()
+
 	merged := overpass.Dataset{}
-	var lastErr error
 	gotData := false
-	for _, t := range TilesAround(pos) {
-		ds, err := c.Get(ctx, t)
-		if err != nil {
-			lastErr = err
+	var lastErr error
+	for i := range tiles {
+		if errs[i] != nil {
+			lastErr = errs[i]
 			continue
 		}
 		gotData = true
-		merged.Ways = append(merged.Ways, ds.Ways...)
-		merged.Stops = append(merged.Stops, ds.Stops...)
-		merged.Amenities = append(merged.Amenities, ds.Amenities...)
+		merged.Ways = append(merged.Ways, results[i].Ways...)
+		merged.Stops = append(merged.Stops, results[i].Stops...)
+		merged.Amenities = append(merged.Amenities, results[i].Amenities...)
 	}
 	if !gotData && lastErr != nil {
 		return overpass.Dataset{}, lastErr
