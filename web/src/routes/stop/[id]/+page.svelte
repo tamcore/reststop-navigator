@@ -42,10 +42,6 @@
 		const stop = { lat: detail.stop.lat, lon: detail.stop.lon };
 		const dist = distanceM({ lat: state.lat, lon: state.lon }, stop);
 		liveDistanceM = dist;
-
-		// ETA = remaining metres / current speed. Speed comes from the
-		// Geolocation API in m/s; clamp to 60 km/h (≈16.7 m/s) so a parked
-		// user still sees a meaningful number.
 		const speedMS = Math.max(state.speed ?? 0, 16.7);
 		liveETASeconds = Math.round(dist / speedMS);
 
@@ -56,15 +52,16 @@
 		} else {
 			userMarker = L.circleMarker(userLatLng, {
 				radius: 8,
-				color: '#22c55e',
-				fillColor: '#22c55e',
-				fillOpacity: 0.9
+				color: '#2ee27a',
+				fillColor: '#2ee27a',
+				fillOpacity: 0.95,
+				weight: 3
 			}).addTo(map);
 		}
 		const stopLatLng = L.latLng(stop.lat, stop.lon);
 		if (line) line.remove();
 		line = L.polyline([userLatLng, stopLatLng], {
-			color: '#22c55e',
+			color: '#2ee27a',
 			weight: 3,
 			opacity: 0.7,
 			dashArray: '6 6'
@@ -72,17 +69,30 @@
 		map.fitBounds(L.latLngBounds(userLatLng, stopLatLng), { padding: [40, 40], maxZoom: 13 });
 	}
 
-	function fmtDistance(m: number): string {
-		if (m < 1000) return `${Math.round(m)} m`;
-		return `${(m / 1000).toFixed(1)} km`;
+	function fmtDistance(m: number): { num: string; unit: string } {
+		if (m < 1000) return { num: String(Math.round(m)), unit: 'm' };
+		return { num: (m / 1000).toFixed(1), unit: 'km' };
 	}
-	function fmtETA(s: number): string {
-		if (s < 60) return `${s} s`;
+	function fmtETA(s: number): { num: string; unit: string } {
+		if (s < 60) return { num: String(s), unit: 's' };
 		const min = Math.round(s / 60);
-		if (min < 60) return `${min} min`;
+		if (min < 60) return { num: String(min), unit: 'min' };
 		const h = Math.floor(min / 60);
-		return `${h} h ${min % 60} min`;
+		return { num: `${h}:${String(min % 60).padStart(2, '0')}`, unit: 'h' };
 	}
+
+	const amenities: {
+		key: keyof NonNullable<DetailResponse['stop']>['amenities'];
+		label: string;
+		icon: string;
+	}[] = [
+		{ key: 'fuel', label: 'FUEL', icon: '⛽' },
+		{ key: 'charging', label: 'EV', icon: '⚡' },
+		{ key: 'food', label: 'FOOD', icon: '🍴' },
+		{ key: 'toilets', label: 'WC', icon: '🚻' },
+		{ key: 'open24h', label: '24/7', icon: '🕐' },
+		{ key: 'dog', label: 'DOG', icon: '🐕' }
+	];
 
 	onMount(async () => {
 		const raw = $page.params.id;
@@ -111,17 +121,20 @@
 
 		if (!detail) return;
 
-		// Dynamic import so leaflet only loads on the detail page.
 		L = (await import('leaflet')).default;
 		await import('leaflet/dist/leaflet.css');
 		await tick();
 		if (!mapEl) return;
 
-		map = L.map(mapEl, { zoomControl: true }).setView([detail.stop.lat, detail.stop.lon], 11);
+		map = L.map(mapEl, { zoomControl: true, attributionControl: false }).setView(
+			[detail.stop.lat, detail.stop.lon],
+			11
+		);
 		L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 			attribution: '© OpenStreetMap',
 			maxZoom: 19
 		}).addTo(map);
+		L.control.attribution({ prefix: false }).addAttribution('© OSM').addTo(map);
 		stopMarker = L.marker([detail.stop.lat, detail.stop.lon]).addTo(map);
 
 		geo.start();
@@ -136,152 +149,345 @@
 </script>
 
 {#if loading}
-	<p class="muted">Loading…</p>
+	<div class="loader">
+		<div class="loader-bar"></div>
+	</div>
 {:else if error}
 	<p class="error">{error}</p>
-	<p><a href="/">Back to list</a></p>
+	<p><a href="/" class="back">← Back to list</a></p>
 {:else if detail}
 	{@const s = detail.stop}
-	<section>
-		<a class="back" href="/">← Back</a>
+	<a class="back" href="/">
+		<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+			<path d="M15 5 L8 12 L15 19" fill="none" stroke="currentColor" stroke-width="2.4" />
+		</svg>
+		<span>Back</span>
+	</a>
 
-		<h1>{s.name || 'Rest area'}</h1>
-		<p class="muted">{s.kind} · {detail.country}</p>
+	<div class="kind">{s.kind === 'services' ? 'SERVICES' : 'REST AREA'} · {detail.country}</div>
+	<h1>{s.name || 'Rest area'}</h1>
+	{#if s.operator}
+		<p class="operator">{s.operator}</p>
+	{/if}
 
-		<div bind:this={mapEl} class="map"></div>
+	<div bind:this={mapEl} class="map"></div>
 
-		<div class="live">
-			{#if liveDistanceM !== null && liveETASeconds !== null}
-				<div>
-					<span class="live-num">{fmtDistance(liveDistanceM)}</span>
-					<span class="live-label">remaining</span>
+	<div class="live">
+		{#if liveDistanceM !== null && liveETASeconds !== null}
+			{@const d = fmtDistance(liveDistanceM)}
+			{@const e = fmtETA(liveETASeconds)}
+			<div class="tile">
+				<div class="tile-num mono">
+					{d.num}<span class="tile-unit">{d.unit}</span>
 				</div>
-				<div>
-					<span class="live-num">{fmtETA(liveETASeconds)}</span>
-					<span class="live-label">
-						ETA
-						{#if $geo.status === 'live'}
-							@ {kmh($geo.speed).toFixed(0)} km/h
-						{/if}
-					</span>
+				<div class="tile-label">Remaining</div>
+			</div>
+			<div class="tile">
+				<div class="tile-num mono">
+					{e.num}<span class="tile-unit">{e.unit}</span>
 				</div>
-			{:else}
-				<span class="muted">Waiting for live location…</span>
-			{/if}
-		</div>
-
-		<div class="amenities">
-			{#if s.amenities.fuel}<span class="badge">⛽ Fuel</span>{/if}
-			{#if s.amenities.charging}<span class="badge">🔌 EV</span>{/if}
-			{#if s.amenities.food}<span class="badge">🍴 Food</span>{/if}
-			{#if s.amenities.toilets}<span class="badge">🚻 Toilets</span>{/if}
-			{#if s.amenities.open24h}<span class="badge">⏰ 24/7</span>{/if}
-			{#if s.amenities.dog}<span class="badge">🐕 Dog</span>{/if}
-		</div>
-
-		{#if s.opening_hours}
-			<p><strong>Opening hours:</strong> {s.opening_hours}</p>
+				<div class="tile-label">
+					ETA
+					{#if $geo.status === 'live'}
+						<span class="dim">@ {kmh($geo.speed).toFixed(0)} km/h</span>
+					{/if}
+				</div>
+			</div>
+		{:else}
+			<div class="tile">
+				<div class="tile-num mono">—</div>
+				<div class="tile-label">Acquiring GPS…</div>
+			</div>
 		{/if}
-		{#if s.operator}
-			<p><strong>Operator:</strong> {s.operator}</p>
-		{/if}
+	</div>
 
-		<div class="links">
-			<a class="btn primary" href={detail.deep_links.google} target="_blank" rel="noopener">
-				Google Maps
-			</a>
-			<a class="btn" href={detail.deep_links.apple} target="_blank" rel="noopener">
-				Apple Maps
-			</a>
-			<a class="btn" href={detail.deep_links.waze} target="_blank" rel="noopener">
-				Waze
-			</a>
+	<div class="section-label">Amenities</div>
+	<div class="amen-grid">
+		{#each amenities as a (a.key)}
+			{@const on = !!s.amenities[a.key]}
+			<div class="amen-tile" class:on>
+				<span class="amen-icon">{a.icon}</span>
+				<span class="amen-label">{a.label}</span>
+				{#if on}
+					<span class="amen-dot" aria-hidden="true">✓</span>
+				{/if}
+			</div>
+		{/each}
+	</div>
+
+	{#if s.opening_hours}
+		<div class="kv">
+			<span class="kv-k">Opening hours</span>
+			<span class="kv-v">{s.opening_hours}</span>
 		</div>
+	{/if}
 
-		<p class="muted small">
-			Google Maps adds the stop as a destination. Waze replaces any active route. Apple Maps
-			depends on iOS version.
-		</p>
-	</section>
+	<div class="section-label">Send to navigation</div>
+	<div class="links">
+		<a class="btn primary" href={detail.deep_links.google} target="_blank" rel="noopener">
+			<span class="btn-label">Google Maps</span>
+			<span class="btn-hint">Add as waypoint</span>
+		</a>
+		<a class="btn" href={detail.deep_links.apple} target="_blank" rel="noopener">
+			<span class="btn-label">Apple Maps</span>
+			<span class="btn-hint">Open destination</span>
+		</a>
+		<a class="btn" href={detail.deep_links.waze} target="_blank" rel="noopener">
+			<span class="btn-label">Waze</span>
+			<span class="btn-hint">Replaces active route</span>
+		</a>
+	</div>
 {/if}
 
 <style>
+	.loader {
+		height: 3px;
+		background: var(--surface);
+		overflow: hidden;
+		margin: 0 0 2rem;
+		border-radius: 2px;
+	}
+	.loader-bar {
+		width: 30%;
+		height: 100%;
+		background: linear-gradient(90deg, transparent, var(--accent), transparent);
+		animation: slide 1.2s linear infinite;
+	}
+	@keyframes slide {
+		from {
+			transform: translateX(-100%);
+		}
+		to {
+			transform: translateX(400%);
+		}
+	}
+
 	.back {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
 		color: var(--accent);
 		text-decoration: none;
-		font-size: 0.9rem;
+		font-family: var(--font-display);
+		font-weight: 600;
+		font-size: 0.78rem;
+		letter-spacing: 0.2em;
+		text-transform: uppercase;
+		margin: 0.25rem 0 0.75rem;
+	}
+	.back:hover {
+		filter: brightness(1.15);
+	}
+
+	.kind {
+		font-family: var(--font-display);
+		font-weight: 600;
+		font-size: 0.7rem;
+		letter-spacing: 0.28em;
+		color: var(--muted);
+		text-transform: uppercase;
 	}
 	h1 {
-		font-size: 1.4rem;
-		margin: 0.5rem 0 0.25rem;
+		font-family: var(--font-display);
+		font-weight: 700;
+		font-size: clamp(1.6rem, 5.5vw, 2.1rem);
+		line-height: 1.05;
+		letter-spacing: 0.005em;
+		margin: 0.2rem 0 0.4rem;
+		color: var(--text-strong);
 	}
-	.muted {
+	.operator {
 		color: var(--muted);
-	}
-	.small {
-		font-size: 0.8rem;
+		font-size: 0.85rem;
+		margin: 0 0 0.5rem;
 	}
 	.error {
 		color: var(--danger);
 	}
+
 	.map {
 		width: 100%;
-		height: 240px;
-		margin: 0.75rem 0;
-		border-radius: 12px;
+		height: 220px;
+		margin: 0.75rem 0 1rem;
+		border-radius: var(--radius-card);
 		overflow: hidden;
 		border: 1px solid var(--border);
-		background: #0b1220;
+		background: var(--bg-elev);
 	}
-	.live {
-		display: flex;
-		gap: 1.5rem;
-		align-items: baseline;
-		margin: 0.5rem 0 1rem;
+	.map :global(.leaflet-container) {
+		font: inherit;
+		background: var(--bg-elev);
 	}
-	.live-num {
-		font-size: 1.4rem;
-		font-weight: 700;
-		color: var(--accent);
-		font-variant-numeric: tabular-nums;
-	}
-	.live-label {
-		display: block;
+	.map :global(.leaflet-control-attribution) {
+		background: rgba(6, 9, 18, 0.7);
 		color: var(--muted);
-		font-size: 0.8rem;
+		backdrop-filter: blur(4px);
+		font-size: 10px;
 	}
-	.amenities {
+
+	.live {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 0.6rem;
+		margin: 0.5rem 0 0.5rem;
+	}
+	.tile {
+		padding: 0.85rem 1rem;
+		border-radius: var(--radius-card);
+		background:
+			radial-gradient(120% 100% at 0% 0%, rgba(46, 226, 122, 0.08), transparent 60%),
+			var(--surface);
+		border: 1px solid var(--border);
+	}
+	.tile-num {
+		font-size: 1.9rem;
+		font-weight: 700;
+		color: var(--text-strong);
+		line-height: 1;
+		display: inline-flex;
+		align-items: baseline;
+	}
+	.tile-unit {
+		font-family: var(--font-display);
+		font-weight: 600;
+		font-size: 0.75rem;
+		letter-spacing: 0.18em;
+		text-transform: uppercase;
+		color: var(--muted);
+		margin-left: 0.3rem;
+	}
+	.tile-label {
+		font-family: var(--font-display);
+		font-weight: 600;
+		font-size: 0.7rem;
+		letter-spacing: 0.22em;
+		text-transform: uppercase;
+		color: var(--muted);
+		margin-top: 0.5rem;
+	}
+	.dim {
+		color: var(--muted-2);
+	}
+
+	.amen-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 0.5rem;
+	}
+	.amen-tile {
+		position: relative;
 		display: flex;
-		flex-wrap: wrap;
-		gap: 0.4rem;
-		margin: 0.75rem 0;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 0.3rem;
+		padding: 0.85rem 0.5rem 0.7rem;
+		border-radius: var(--radius-card);
+		background: var(--surface);
+		border: 1px solid var(--border);
+		text-align: center;
+		opacity: 0.4;
+		transition: opacity 0.2s, border-color 0.2s, background 0.2s;
 	}
-	.badge {
-		padding: 0.2rem 0.55rem;
-		background: rgba(34, 197, 94, 0.15);
-		border-radius: 999px;
-		font-size: 0.85rem;
+	.amen-tile.on {
+		opacity: 1;
+		border-color: rgba(46, 226, 122, 0.4);
+		background:
+			radial-gradient(80% 100% at 50% 0%, rgba(46, 226, 122, 0.08), transparent 60%),
+			var(--surface);
 	}
+	.amen-icon {
+		font-size: 1.4rem;
+		filter: grayscale(0.6);
+	}
+	.amen-tile.on .amen-icon {
+		filter: none;
+	}
+	.amen-label {
+		font-family: var(--font-display);
+		font-weight: 600;
+		font-size: 0.7rem;
+		letter-spacing: 0.22em;
+		color: var(--muted);
+	}
+	.amen-tile.on .amen-label {
+		color: var(--accent);
+	}
+	.amen-dot {
+		position: absolute;
+		top: 0.4rem;
+		right: 0.5rem;
+		font-size: 0.7rem;
+		color: var(--accent);
+	}
+
+	.kv {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		padding: 0.7rem 0;
+		border-bottom: 1px dashed var(--border);
+	}
+	.kv-k {
+		font-family: var(--font-display);
+		font-weight: 600;
+		font-size: 0.72rem;
+		letter-spacing: 0.22em;
+		text-transform: uppercase;
+		color: var(--muted);
+	}
+	.kv-v {
+		font-family: var(--font-mono);
+		color: var(--text-strong);
+	}
+
 	.links {
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
-		margin: 1rem 0;
+		margin: 0.4rem 0 0.5rem;
 	}
 	.btn {
-		display: block;
-		padding: 0.85rem 1rem;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 0.95rem 1.1rem;
 		border: 1px solid var(--border);
-		border-radius: 12px;
+		border-radius: var(--radius-card);
 		background: var(--surface);
 		color: var(--text);
 		text-decoration: none;
-		text-align: center;
-		font-weight: 600;
+		transition: transform 0.15s var(--ease-spring), border-color 0.2s, box-shadow 0.2s;
+	}
+	.btn:hover {
+		transform: translateY(-1px);
+		border-color: var(--border-strong);
+	}
+	.btn:active {
+		transform: translateY(0);
+	}
+	.btn-label {
+		font-family: var(--font-display);
+		font-weight: 700;
+		font-size: 0.95rem;
+		letter-spacing: 0.18em;
+		text-transform: uppercase;
+		color: var(--text-strong);
+	}
+	.btn-hint {
+		font-size: 0.78rem;
+		color: var(--muted);
 	}
 	.btn.primary {
-		background: var(--accent-strong);
-		border-color: var(--accent);
-		color: #fff;
+		background: linear-gradient(180deg, #34f088, var(--accent-strong));
+		border-color: var(--accent-strong);
+		box-shadow: 0 12px 28px -16px rgba(46, 226, 122, 0.6);
+	}
+	.btn.primary .btn-label,
+	.btn.primary .btn-hint {
+		color: var(--bg);
+	}
+	.btn.primary .btn-hint {
+		opacity: 0.7;
 	}
 </style>

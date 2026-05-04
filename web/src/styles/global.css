@@ -1,25 +1,156 @@
+@import '@fontsource/antonio/400.css';
+@import '@fontsource/antonio/600.css';
+@import '@fontsource/antonio/700.css';
+@import '@fontsource/geist/400.css';
+@import '@fontsource/geist/500.css';
+@import '@fontsource/geist/600.css';
+@import '@fontsource/jetbrains-mono/500.css';
+@import '@fontsource/jetbrains-mono/700.css';
+
 :root {
 	color-scheme: dark;
-	--bg: #0b1220;
-	--surface: #111a2c;
-	--text: #e6edf3;
-	--muted: #94a3b8;
-	--accent: #22c55e;
-	--accent-strong: #16a34a;
-	--border: #1f2937;
-	--danger: #f87171;
+
+	/* Surface palette — midnight ink with elevated planes. */
+	--bg: #060912;
+	--bg-elev: #0c1220;
+	--surface: #121a2c;
+	--surface-2: #1a2438;
+	--border: #1f2c47;
+	--border-strong: #2c3d62;
+
+	/* Type — bone white, never pure. */
+	--text: #f0eee5;
+	--text-strong: #fffefa;
+	--muted: #8a96b0;
+	--muted-2: #5b6685;
+
+	/* Accents — Autobahn green primary, Verkehrsblau cool, signal amber. */
+	--accent: #2ee27a;
+	--accent-strong: #14b25b;
+	--accent-glow: rgba(46, 226, 122, 0.18);
+	--cool: #4d7cff;
+	--amber: #ffb547;
+	--danger: #ff6470;
+
+	/* Type stack. */
+	--font-display: 'Antonio', 'Saira Condensed', system-ui, sans-serif;
+	--font-body: 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
+	--font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+	/* Geometry. */
+	--radius-card: 16px;
+	--radius-pill: 999px;
+	--radius-sm: 8px;
+
+	/* Motion. */
+	--ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+	--ease-spring: cubic-bezier(0.22, 1.4, 0.4, 1);
 }
 
 * {
 	box-sizing: border-box;
 }
 
+html,
+body {
+	margin: 0;
+	padding: 0;
+	font-family: var(--font-body);
+	font-feature-settings: 'ss01', 'cv11';
+	background:
+		radial-gradient(80% 60% at 50% 0%, #0e1a36 0%, transparent 70%),
+		radial-gradient(60% 40% at 50% 110%, #0a1226 0%, transparent 70%),
+		var(--bg);
+	background-attachment: fixed;
+	color: var(--text);
+	min-height: 100dvh;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+/* Faint motorway lane-stripe overlay, fixed, masked to the viewport centre. */
+body::before {
+	content: '';
+	position: fixed;
+	inset: 0;
+	pointer-events: none;
+	z-index: 0;
+	background-image: repeating-linear-gradient(
+		180deg,
+		transparent 0,
+		transparent 38px,
+		rgba(46, 226, 122, 0.05) 38px,
+		rgba(46, 226, 122, 0.05) 56px
+	);
+	mask-image: radial-gradient(80% 60% at 50% 50%, black 50%, transparent 90%);
+	opacity: 0.6;
+}
+
 button {
 	font: inherit;
 	color: inherit;
 	cursor: pointer;
+	background: none;
+	border: 0;
 }
 
 a {
 	color: var(--accent);
+}
+
+::selection {
+	background: var(--accent);
+	color: var(--bg);
+}
+
+.display {
+	font-family: var(--font-display);
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+}
+.mono {
+	font-family: var(--font-mono);
+	font-variant-numeric: tabular-nums;
+}
+
+.section-label {
+	font-family: var(--font-display);
+	font-weight: 600;
+	font-size: 0.78rem;
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	color: var(--muted);
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin: 1.25rem 0 0.5rem;
+}
+.section-label::before {
+	content: '';
+	display: block;
+	width: 1.5rem;
+	height: 2px;
+	background: var(--accent);
+}
+
+@keyframes rise {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+@keyframes pulse-chevron {
+	0%,
+	100% {
+		opacity: 0.55;
+		transform: translateX(0);
+	}
+	50% {
+		opacity: 1;
+		transform: translateX(2px);
+	}
 }

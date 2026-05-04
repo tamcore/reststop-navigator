@@ -5,10 +5,11 @@
 	import { geo, kmh, type GeoState } from '$lib/stores/geo';
 	import FilterChips from '$lib/components/FilterChips.svelte';
 	import StopCard from '$lib/components/StopCard.svelte';
-	import { ALL_FILTERS, type FilterKey, type StopInfo } from '$lib/types/api';
+	import RoadShield from '$lib/components/RoadShield.svelte';
+	import { ALL_FILTERS, type FilterKey, type StopInfo, type Road } from '$lib/types/api';
 
 	let stops: StopInfo[] = $state([]);
-	let road: { ref?: string; name?: string; direction?: string } | null = $state(null);
+	let road: Road | null = $state(null);
 	let reason = $state<string | null>(null);
 	let lastError = $state<string | null>(null);
 	let loading = $state(false);
@@ -20,6 +21,17 @@
 
 	function activeFilterKeys(s: Set<FilterKey>): FilterKey[] {
 		return ALL_FILTERS.filter((k) => s.has(k));
+	}
+	function getCurrentFilters(): Set<FilterKey> {
+		let s = new Set<FilterKey>();
+		const u = filters.subscribe((v) => (s = v));
+		u();
+		return s;
+	}
+	function pollIntervalMS(state: GeoState): number {
+		if (state.status !== 'live') return 60_000;
+		const v = kmh(state.speed);
+		return v > 20 ? 15_000 : 60_000;
 	}
 
 	async function refresh(state: GeoState) {
@@ -51,22 +63,8 @@
 		}
 	}
 
-	function getCurrentFilters(): Set<FilterKey> {
-		let s = new Set<FilterKey>();
-		const u = filters.subscribe((v) => (s = v));
-		u();
-		return s;
-	}
-
-	function pollIntervalMS(state: GeoState): number {
-		if (state.status !== 'live') return 60_000;
-		const v = kmh(state.speed);
-		return v > 20 ? 15_000 : 60_000;
-	}
-
 	onMount(() => {
 		geo.start();
-
 		lastUnsub = geo.subscribe((s) => {
 			if (pollTimer) clearInterval(pollTimer);
 			if (s.status === 'live') {
@@ -74,7 +72,6 @@
 				pollTimer = setInterval(() => void refresh(s), pollIntervalMS(s));
 			}
 		});
-
 		lastFiltersUnsub = filters.subscribe(() => {
 			let cur: GeoState = { status: 'idle' };
 			const u = geo.subscribe((v) => (cur = v));
@@ -92,57 +89,183 @@
 	});
 </script>
 
-<section>
-	<FilterChips />
-
-	{#if $geo.status === 'idle' || $geo.status === 'pending'}
-		<p class="muted">Waiting for location…</p>
+<section class="hero">
+	{#if $geo.status === 'live' && road}
+		<RoadShield ref={road.ref ?? ''} direction={road.direction ?? ''} name={road.name ?? ''} />
+		<div class="speed">
+			<span class="speed-num mono">{kmh($geo.speed).toFixed(0)}</span>
+			<span class="speed-unit">km/h</span>
+		</div>
+	{:else if $geo.status === 'live' && !road}
+		<div class="hero-empty">
+			<span class="hero-empty-label">Standby</span>
+			<span class="hero-empty-msg">No motorway match yet — keep driving.</span>
+		</div>
+	{:else if $geo.status === 'idle' || $geo.status === 'pending'}
+		<div class="hero-empty">
+			<span class="hero-empty-label">Acquiring GPS</span>
+			<div class="dots"><i></i><i></i><i></i></div>
+		</div>
 	{:else if $geo.status === 'permission-denied'}
-		<p class="error">
-			Location permission denied. This app needs your location to find stops ahead.
-		</p>
+		<div class="hero-empty error">
+			<span class="hero-empty-label">Location denied</span>
+			<span class="hero-empty-msg">
+				This app needs your location to find stops ahead. Allow it in your browser.
+			</span>
+		</div>
 	{:else if $geo.status === 'unavailable'}
-		<p class="error">Location is unavailable on this device.</p>
-	{:else if $geo.status === 'live'}
-		{#if road?.ref}
-			<p class="road">
-				{road.ref}
-				{#if road.direction}<span class="dir"> {road.direction}</span>{/if}
-				{#if road.name}<span class="muted"> · {road.name}</span>{/if}
-			</p>
-		{/if}
-
-		{#if lastError}
-			<p class="error">{lastError}</p>
-		{/if}
-
-		{#if reason === 'outside-supported-area'}
-			<p class="muted">Outside the MVP coverage area (DE / AT / SK / CZ).</p>
-		{:else if reason === 'off-highway-or-wrong-direction'}
-			<p class="muted">No motorway match yet — keep driving.</p>
-		{:else if stops.length === 0 && !loading}
-			<p class="muted">No upcoming stops match your filters.</p>
-		{/if}
-
-		{#each stops as stop (stop.id)}
-			<StopCard {stop} />
-		{/each}
+		<div class="hero-empty error">
+			<span class="hero-empty-label">Location unavailable</span>
+			<span class="hero-empty-msg">No geolocation on this device.</span>
+		</div>
 	{/if}
 </section>
 
+<FilterChips />
+
+<div class="section-label">Next stops</div>
+
+{#if lastError}
+	<p class="error">{lastError}</p>
+{/if}
+
+{#if reason === 'outside-supported-area'}
+	<p class="muted">Outside MVP coverage (DE / AT / SK / CZ).</p>
+{:else if reason === 'off-highway-or-wrong-direction'}
+	<p class="muted">No motorway match yet — keep driving.</p>
+{:else if stops.length === 0 && !loading && $geo.status === 'live'}
+	<p class="muted">No upcoming stops match your filters.</p>
+{/if}
+
+<ol class="stop-list">
+	{#each stops as stop, i (stop.id)}
+		<li style="--i: {i}">
+			<StopCard {stop} />
+		</li>
+	{/each}
+</ol>
+
 <style>
+	.hero {
+		position: relative;
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-end;
+		gap: 1rem;
+		padding: 1.25rem 1rem 1.5rem;
+		margin: 0.5rem 0 0.5rem;
+		border-radius: 20px;
+		background:
+			radial-gradient(120% 100% at 0% 0%, rgba(46, 226, 122, 0.08), transparent 60%),
+			linear-gradient(180deg, var(--bg-elev) 0%, var(--surface) 100%);
+		border: 1px solid var(--border);
+		box-shadow: 0 24px 60px -30px rgba(46, 226, 122, 0.25);
+		overflow: hidden;
+	}
+	.hero::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background-image: repeating-linear-gradient(
+			90deg,
+			rgba(255, 255, 255, 0.025) 0,
+			rgba(255, 255, 255, 0.025) 1px,
+			transparent 1px,
+			transparent 22px
+		);
+		pointer-events: none;
+		mask-image: linear-gradient(180deg, black 30%, transparent 100%);
+	}
+	.speed {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		line-height: 1;
+		position: relative;
+	}
+	.speed-num {
+		font-size: 2.4rem;
+		font-weight: 700;
+		color: var(--text-strong);
+		letter-spacing: -0.02em;
+	}
+	.speed-unit {
+		font-family: var(--font-display);
+		font-size: 0.75rem;
+		letter-spacing: 0.2em;
+		text-transform: uppercase;
+		color: var(--muted);
+		margin-top: 0.25rem;
+	}
+
+	.hero-empty {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+		padding: 0.5rem 0;
+	}
+	.hero-empty-label {
+		font-family: var(--font-display);
+		font-weight: 700;
+		font-size: 0.95rem;
+		letter-spacing: 0.24em;
+		color: var(--accent);
+		text-transform: uppercase;
+	}
+	.hero-empty.error .hero-empty-label {
+		color: var(--danger);
+	}
+	.hero-empty-msg {
+		color: var(--muted);
+		font-size: 0.9rem;
+		max-width: 28ch;
+	}
+
+	.dots {
+		display: inline-flex;
+		gap: 6px;
+		margin-top: 0.25rem;
+	}
+	.dots i {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: var(--accent);
+		opacity: 0.4;
+		animation: blink 1.2s infinite var(--ease-out);
+	}
+	.dots i:nth-child(2) {
+		animation-delay: 0.15s;
+	}
+	.dots i:nth-child(3) {
+		animation-delay: 0.3s;
+	}
+	@keyframes blink {
+		0%,
+		100% {
+			opacity: 0.25;
+		}
+		40% {
+			opacity: 1;
+		}
+	}
+
 	.muted {
 		color: var(--muted);
+		padding: 0.25rem 0.25rem 0.5rem;
 	}
 	.error {
 		color: var(--danger);
+		padding: 0.25rem 0.25rem 0.5rem;
 	}
-	.road {
-		font-weight: 600;
-		font-size: 1.1rem;
-		margin: 0.5rem 0;
+	.stop-list {
+		list-style: none;
+		padding: 0;
+		margin: 0;
 	}
-	.dir {
-		color: var(--accent);
+	.stop-list li {
+		opacity: 0;
+		animation: rise 0.36s var(--ease-spring) forwards;
+		animation-delay: calc(var(--i) * 50ms);
 	}
 </style>
