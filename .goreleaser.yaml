@@ -1,0 +1,55 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: reststop-navigator
+    main: ./cmd/server
+    binary: reststop-navigator
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+
+archives:
+  - id: reststop-navigator-archive
+    formats:
+      - tar.gz
+    name_template: "reststop-navigator_{{ .Tag }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Tag }}-next"
+
+changelog:
+  use: github
+  sort: asc
+
+dockers_v2:
+  - ids: [reststop-navigator]
+    images:
+      - "ghcr.io/tamcore/reststop-navigator"
+    tags:
+      - "{{ .Tag }}"
+      - latest
+    dockerfile: Dockerfile
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    labels:
+      "org.opencontainers.image.created": "{{.Date}}"
+      "org.opencontainers.image.title": "{{.ProjectName}}"
+      "org.opencontainers.image.revision": "{{.FullCommit}}"
+      "org.opencontainers.image.version": "{{.Version}}"
+      "org.opencontainers.image.source": "https://github.com/tamcore/reststop-navigator"
+      "org.opencontainers.image.description": "Reststop Navigator - find upcoming highway rest stops"
