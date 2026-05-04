@@ -1,0 +1,64 @@
+{{- if .Values.redis.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "reststop-navigator.redis.fullname" . }}
+  labels:
+    {{- include "reststop-navigator.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "reststop-navigator.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: redis
+  template:
+    metadata:
+      labels:
+        {{- include "reststop-navigator.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: redis
+    spec:
+      containers:
+        - name: redis
+          image: {{ .Values.redis.image | quote }}
+          ports:
+            - name: redis
+              containerPort: 6379
+          readinessProbe:
+            tcpSocket:
+              port: redis
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: redis
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.redis.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "reststop-navigator.redis.fullname" . }}
+  labels:
+    {{- include "reststop-navigator.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "reststop-navigator.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis
+{{- end }}

@@ -1,0 +1,11 @@
+apiVersion: v2
+name: reststop-navigator
+description: Find upcoming highway rest stops on your route - PWA + Go backend.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/tamcore/reststop-navigator
+sources:
+  - https://github.com/tamcore/reststop-navigator
+maintainers:
+  - name: tamcore
