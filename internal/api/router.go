@@ -5,8 +5,10 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	chimw "github.com/go-chi/chi/v5/middleware"
 
 	"github.com/tamcore/reststop-navigator/internal/api/handlers"
+	"github.com/tamcore/reststop-navigator/internal/api/middleware"
 )
 
 // NewRouter returns the public HTTP handler. Routes live under /api.
@@ -15,6 +17,11 @@ import (
 // the bootstrap/init phase before the cache is hydrated.
 func NewRouter(stopsSvc handlers.StopsService) http.Handler {
 	r := chi.NewRouter()
+	r.Use(chimw.Recoverer)
+	r.Use(chimw.RequestID)
+	r.Use(chimw.RealIP)
+	r.Use(middleware.SecurityHeaders)
+
 	r.Get("/api/healthz", healthz)
 
 	if stopsSvc != nil {
