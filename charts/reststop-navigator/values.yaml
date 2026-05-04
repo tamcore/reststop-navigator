@@ -23,20 +23,16 @@ service:
 ingress:
   enabled: true
   className: nginx
-  annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  # cert-manager + nginx-ingress: provision a Let's Encrypt cert for the
+  # listed hostnames, force HTTPS, and pin the secretName so the chart
+  # template can reference it from spec.tls.
+  certManagerIssuer: letsencrypt-prod
+  annotations: {}
   hosts:
     - restops.85.215.177.78.meh.wf
-  tls: []
-  # Example with cert-manager:
-  # annotations:
-  #   cert-manager.io/cluster-issuer: letsencrypt-prod
-  #   nginx.ingress.kubernetes.io/ssl-redirect: "true"
-  # tls:
-  #   - secretName: reststop-navigator-tls
-  #     hosts:
-  #       - restops.85.215.177.78.meh.wf
+  tls:
+    - hosts:
+        - restops.85.215.177.78.meh.wf
 
 # Gateway API HTTPRoute is no longer the default (the prod cluster's wildcard
 # DNS *.85.215.177.78.meh.wf points at the ingress-controller, not a Gateway).
