@@ -41,15 +41,17 @@ jobs:
           go-version-file: go.mod
 
       - name: Run tests
-        run: go test -v -race -coverprofile=coverage.out ./...
+        # -coverpkg=./internal/... so cmd/ entrypoints don't dilute the gate;
+        # ./... still runs all tests to catch build breakage everywhere.
+        run: go test -v -race -coverprofile=coverage.out -coverpkg=./internal/... ./...
 
       - name: Coverage gate
         run: |
-          if [ ! -s coverage.out ]; then
-            echo "No packages with tests yet — skipping coverage gate."
+          if [ ! -s coverage.out ] || ! grep -q '/internal/' coverage.out; then
+            echo "No internal/ packages with tests yet — skipping coverage gate."
             exit 0
           fi
           go tool cover -func=coverage.out
           TOTAL=$(go tool cover -func=coverage.out | awk '/^total:/ {print $3}' | tr -d '%')
-          echo "Total coverage: ${TOTAL}%"
+          echo "Total internal/ coverage: ${TOTAL}%"
           awk -v c="$TOTAL" -v t="${COVERAGE_THRESHOLD}" 'BEGIN { if (c+0 < t+0) { printf("Coverage %s%% is below threshold %s%%\n", c, t); exit 1 } }'
