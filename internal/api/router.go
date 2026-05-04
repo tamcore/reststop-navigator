@@ -5,12 +5,21 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+
+	"github.com/tamcore/reststop-navigator/internal/api/handlers"
 )
 
 // NewRouter returns the public HTTP handler. Routes live under /api.
-func NewRouter() http.Handler {
+//
+// stopsSvc may be nil — in that case only /api/healthz is mounted, useful for
+// the bootstrap/init phase before the cache is hydrated.
+func NewRouter(stopsSvc handlers.StopsService) http.Handler {
 	r := chi.NewRouter()
 	r.Get("/api/healthz", healthz)
+
+	if stopsSvc != nil {
+		handlers.NewStops(stopsSvc).Mount(r)
+	}
 	return r
 }
 

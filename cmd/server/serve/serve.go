@@ -19,6 +19,7 @@ import (
 	"github.com/tamcore/reststop-navigator/internal/cache"
 	"github.com/tamcore/reststop-navigator/internal/config"
 	"github.com/tamcore/reststop-navigator/internal/overpass"
+	"github.com/tamcore/reststop-navigator/internal/stops"
 )
 
 const (
@@ -44,6 +45,7 @@ func Run() error {
 	c := cache.NewRedis(rdb)
 	overpassClient := overpass.NewClient(cfg.OverpassEndpoints)
 	hydrator := cache.NewHydrator(overpassClient, c)
+	stopsSvc := stops.NewService(c)
 
 	rootCtx, cancelRoot := context.WithCancel(context.Background())
 	defer cancelRoot()
@@ -57,7 +59,7 @@ func Run() error {
 
 	srv := &http.Server{
 		Addr:              cfg.ListenAddr,
-		Handler:           api.NewRouter(),
+		Handler:           api.NewRouter(stopsSvc),
 		ReadHeaderTimeout: readHeaderTime,
 	}
 

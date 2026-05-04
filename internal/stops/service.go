@@ -76,6 +76,25 @@ type UpcomingResponse struct {
 	Reason  string     `json:"reason,omitempty"`
 }
 
+// DeepLinks are precomputed nav-app handoff URLs for one stop.
+type DeepLinks struct {
+	Google string `json:"google"`
+	Apple  string `json:"apple"`
+	Waze   string `json:"waze"`
+}
+
+// DetailResponse is the per-stop detail shape used by GET /api/stops/detail.
+type DetailResponse struct {
+	Country   string            `json:"country"`
+	Stop      StopInfo          `json:"stop"`
+	DeepLinks DeepLinks         `json:"deep_links"`
+	Tags      map[string]string `json:"tags,omitempty"`
+}
+
+// ErrStopNotFound is returned by Get when no supported country contains a stop
+// with the given id.
+var ErrStopNotFound = fmt.Errorf("stops: not found")
+
 const (
 	minSpeedKMH  = 60.0
 	defaultLimit = 10
@@ -178,6 +197,47 @@ func (s *Service) Upcoming(ctx context.Context, req UpcomingRequest) (UpcomingRe
 		}
 	}
 	return out, nil
+}
+
+// Get returns the detail view for one stop. id is the public id form
+// "{osm_type}/{osm_id}" (e.g. "node/123"). All supported countries are
+// scanned in stable order until a match is found.
+func (s *Service) Get(ctx context.Context, id string) (DetailResponse, error) {
+	for _, c := range overpass.SupportedCountries() {
+		ds, err := s.reader.ReadDataset(ctx, c)
+		if err != nil {
+			continue // missing country dataset shouldn't block lookups in others
+		}
+		for _, st := range ds.Stops {
+			if stopID(st) != id {
+				continue
+			}
+			return DetailResponse{
+				Country: string(c),
+				Stop: StopInfo{
+					ID:           id,
+					Name:         st.Name,
+					Kind:         st.Kind,
+					Lat:          st.Pos.Lat,
+					Lon:          st.Pos.Lon,
+					Amenities:    st.Amenities,
+					OpeningHours: st.Tags["opening_hours"],
+					Operator:     st.Tags["operator"],
+				},
+				DeepLinks: deepLinks(st.Pos),
+				Tags:      st.Tags,
+			}, nil
+		}
+	}
+	return DetailResponse{}, ErrStopNotFound
+}
+
+func deepLinks(p geo.LatLng) DeepLinks {
+	return DeepLinks{
+		Google: fmt.Sprintf("https://www.google.com/maps/dir/?api=1&destination=%g,%g&travelmode=driving", p.Lat, p.Lon),
+		Apple:  fmt.Sprintf("https://maps.apple.com/?daddr=%g,%g&dirflg=d", p.Lat, p.Lon),
+		Waze:   fmt.Sprintf("https://waze.com/ul?ll=%g,%g&navigate=yes", p.Lat, p.Lon),
+	}
 }
 
 func resolveCountry(p geo.LatLng) overpass.CountryISO {

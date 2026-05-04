@@ -13,7 +13,7 @@ import (
 func TestHealthzReturnsOK(t *testing.T) {
 	t.Parallel()
 
-	srv := httptest.NewServer(api.NewRouter())
+	srv := httptest.NewServer(api.NewRouter(nil))
 	t.Cleanup(srv.Close)
 
 	resp, err := http.Get(srv.URL + "/api/healthz")
@@ -48,7 +48,7 @@ func TestHealthzReturnsOK(t *testing.T) {
 func TestUnknownRouteReturns404(t *testing.T) {
 	t.Parallel()
 
-	srv := httptest.NewServer(api.NewRouter())
+	srv := httptest.NewServer(api.NewRouter(nil))
 	t.Cleanup(srv.Close)
 
 	resp, err := http.Get(srv.URL + "/api/does-not-exist")

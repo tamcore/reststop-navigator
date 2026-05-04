@@ -3,6 +3,7 @@ package stops_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/tamcore/reststop-navigator/internal/geo"
@@ -219,6 +220,39 @@ func TestUpcoming_LowSpeedClampsETA(t *testing.T) {
 	}
 	if resp.Stops[0].ETASeconds > 60 {
 		t.Errorf("ETA = %ds at 5 km/h, expected speed floor to clamp", resp.Stops[0].ETASeconds)
+	}
+}
+
+func TestGet_HappyPath(t *testing.T) {
+	t.Parallel()
+	svc := stops.NewService(fakeReader{ds: straightEastA8DE()})
+	got, err := svc.Get(context.Background(), "node/100")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.Country != "DE" {
+		t.Errorf("country = %q", got.Country)
+	}
+	if got.Stop.Name != "Aichen" {
+		t.Errorf("name = %q", got.Stop.Name)
+	}
+	if !strings.Contains(got.DeepLinks.Google, "destination=48,11.0075") {
+		t.Errorf("google deep link = %q", got.DeepLinks.Google)
+	}
+	if !strings.Contains(got.DeepLinks.Apple, "daddr=48,11.0075") {
+		t.Errorf("apple deep link = %q", got.DeepLinks.Apple)
+	}
+	if !strings.Contains(got.DeepLinks.Waze, "ll=48,11.0075") {
+		t.Errorf("waze deep link = %q", got.DeepLinks.Waze)
+	}
+}
+
+func TestGet_NotFound(t *testing.T) {
+	t.Parallel()
+	svc := stops.NewService(fakeReader{ds: straightEastA8DE()})
+	_, err := svc.Get(context.Background(), "node/9999")
+	if !errors.Is(err, stops.ErrStopNotFound) {
+		t.Fatalf("err = %v, want ErrStopNotFound", err)
 	}
 }
 
