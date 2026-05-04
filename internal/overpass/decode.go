@@ -21,6 +21,7 @@ type AmenityFlags struct {
 // Stop is a parsed OSM rest-stop element (highway=services|rest_area). The
 // Amenities field is populated by EnrichDataset, not Decode.
 type Stop struct {
+	OSMType   string            `json:"osm_type"` // node|way
 	OSMID     int64             `json:"osm_id"`
 	Kind      string            `json:"kind"` // services|rest_area
 	Pos       geo.LatLng        `json:"pos"`
@@ -82,21 +83,23 @@ func Decode(raw []byte) (Dataset, error) {
 					continue
 				}
 				ds.Stops = append(ds.Stops, Stop{
-					OSMID: e.ID,
-					Kind:  highway,
-					Pos:   pos,
-					Name:  e.Tags["name"],
-					Tags:  e.Tags,
+					OSMType: "way",
+					OSMID:   e.ID,
+					Kind:    highway,
+					Pos:     pos,
+					Name:    e.Tags["name"],
+					Tags:    e.Tags,
 				})
 			}
 		case "node":
 			if h := e.Tags["highway"]; h == "services" || h == "rest_area" {
 				ds.Stops = append(ds.Stops, Stop{
-					OSMID: e.ID,
-					Kind:  h,
-					Pos:   geo.LatLng{Lat: e.Lat, Lon: e.Lon},
-					Name:  e.Tags["name"],
-					Tags:  e.Tags,
+					OSMType: "node",
+					OSMID:   e.ID,
+					Kind:    h,
+					Pos:     geo.LatLng{Lat: e.Lat, Lon: e.Lon},
+					Name:    e.Tags["name"],
+					Tags:    e.Tags,
 				})
 				continue
 			}
