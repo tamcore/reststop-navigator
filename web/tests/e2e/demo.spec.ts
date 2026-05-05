@@ -58,8 +58,8 @@ test('demo mode loads stops without real GPS', async ({ page }) => {
 	// The demo banner is visible.
 	await expect(page.getByText('DEMO MODE')).toBeVisible();
 
-	// The road shield shows A3.
-	await expect(page.getByText(/A3/)).toBeVisible({ timeout: 10_000 });
+	// The road shield shows A3 (exact match avoids collision with DemoBadge description text).
+	await expect(page.getByText('A3', { exact: true })).toBeVisible({ timeout: 10_000 });
 
 	// At least one stop card is rendered.
 	await expect(page.locator('a.card').first()).toBeVisible({ timeout: 10_000 });
@@ -96,8 +96,8 @@ test('exit demo returns to GPS-denied state', async ({ page }) => {
 	await upcomingResp;
 	await expect(page.locator('a.card').first()).toBeVisible({ timeout: 10_000 });
 
-	// Click "exit" in the demo banner.
-	await page.getByRole('button', { name: 'exit' }).click();
+	// Click "exit" in the demo banner (exact: true avoids matching the footer "Exit demo" button).
+	await page.getByRole('button', { name: 'exit', exact: true }).click();
 
 	// GPS-denied hero reappears; banner gone; footer button reads "Demo mode" again.
 	await expect(page.getByText(/Location denied/i)).toBeVisible({ timeout: 5_000 });
