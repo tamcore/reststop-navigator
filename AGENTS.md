@@ -22,6 +22,7 @@ The following are **PRIVATE** and must never appear in tracked files (Helm value
 - Public IPs that resolve to user-owned infrastructure.
 - Internal registry hostnames.
 - The `kube-context` name used for the user's cluster.
+- The user's separate GitOps repo and the GitOps controller it runs (both named only in `AGENTS.md.local`). Refer to "the user's GitOps wiring" or "the deploy controller" in any tracked file.
 - Anything else explicitly marked private in `AGENTS.md.local`.
 
 If you find any of these in the working tree before committing, treat it as a release-blocking bug and remove it. Pass them only at deploy time via env vars / `--set` flags read from `AGENTS.md.local`.
@@ -62,8 +63,10 @@ internal/overpass/  # Overpass HTTP client + queries + decode + enrich
 internal/stops/     # service orchestration + filters + ranking
 web/                # SvelteKit PWA (static adapter), embedded via //go:embed
 charts/reststop-navigator/  # Helm chart (host/registry are caller-supplied)
-docs/screenshots/   # README screenshots — keep current
+docs/               # Engineering docs (architecture, development, deployment) + screenshots
 ```
+
+For onboarding, start with `docs/architecture.md`, then `docs/development.md`, then `docs/deployment.md`. Keep them current alongside `README.md` per the documentation discipline above.
 
 ## Deployment
 

@@ -30,6 +30,16 @@ MVP supports motorways and trunk roads in:
 
 No accounts. No tracking. The browser asks for geolocation; the backend never stores per-user data.
 
+## Docs
+
+Engineering docs live under [`docs/`](docs/):
+
+- [architecture.md](docs/architecture.md) — system overview, request flow, design decisions.
+- [development.md](docs/development.md) — clone, build, test, replay.
+- [deployment.md](docs/deployment.md) — release pipeline, GitOps notes, dev deploys.
+
+Workflow rules for AI coding agents are in [AGENTS.md](AGENTS.md).
+
 ## Status
 
 Pre-MVP.
