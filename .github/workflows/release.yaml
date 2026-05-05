@@ -78,10 +78,8 @@ jobs:
         env:
           VERSION: "${{ github.ref_name }}"
         run: |
-          # Strip the leading 'v' from tags like v0.1.0 for SemVer compliance.
-          STRIPPED="${VERSION#v}"
-          yq -i ".version = \"${STRIPPED}\"" '${{ env.CHART_DIR }}/Chart.yaml'
-          yq -i ".appVersion = \"${STRIPPED}\"" '${{ env.CHART_DIR }}/Chart.yaml'
+          yq -i ".version = \"${VERSION}\"" '${{ env.CHART_DIR }}/Chart.yaml'
+          yq -i ".appVersion = \"${VERSION}\"" '${{ env.CHART_DIR }}/Chart.yaml'
 
       - name: Package chart
         run: |
