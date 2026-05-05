@@ -72,6 +72,56 @@
 			"lat": 48.000,
 			"lon": 11.0076,
 			"tags": { "amenity": "restaurant", "name": "Burger Bar" }
+		},
+
+		{
+			"type": "way",
+			"id": 1003,
+			"tags": { "highway": "motorway", "oneway": "yes", "ref": "A3", "name": "Köln - Frankfurt" },
+			"geometry": [
+				{ "lat": 50.060, "lon": 8.840 },
+				{ "lat": 50.060, "lon": 8.850 },
+				{ "lat": 50.060, "lon": 8.860 },
+				{ "lat": 50.060, "lon": 8.870 },
+				{ "lat": 50.060, "lon": 8.880 },
+				{ "lat": 50.060, "lon": 8.890 },
+				{ "lat": 50.060, "lon": 8.900 },
+				{ "lat": 50.060, "lon": 8.910 },
+				{ "lat": 50.060, "lon": 8.920 }
+			]
+		},
+		{
+			"type": "node",
+			"id": 2004,
+			"lat": 50.060,
+			"lon": 8.895,
+			"tags": {
+				"highway": "services",
+				"name": "Rasthof Weiskirchen Nord",
+				"operator": "Tank & Rast",
+				"opening_hours": "24/7"
+			}
+		},
+		{
+			"type": "node",
+			"id": 2005,
+			"lat": 50.060,
+			"lon": 8.915,
+			"tags": { "highway": "rest_area", "name": "Hainbach" }
+		},
+		{
+			"type": "node",
+			"id": 3004,
+			"lat": 50.060,
+			"lon": 8.893,
+			"tags": { "amenity": "fuel", "brand": "Shell" }
+		},
+		{
+			"type": "node",
+			"id": 3005,
+			"lat": 50.060,
+			"lon": 8.897,
+			"tags": { "amenity": "restaurant", "name": "Autobahn Restaurant" }
 		}
 	]
 }

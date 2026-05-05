@@ -117,9 +117,8 @@ test('detail page works in demo mode', async ({ page }) => {
 
 	// Navigate to the first stop's detail page.
 	await page.locator('a.card').first().click();
-	await expect(page).toHaveURL(
-		new RegExp(`/stop/.*lat=${DEMO_LAT}.*lon=${DEMO_LON}|/stop/.*lon=${DEMO_LON}.*lat=${DEMO_LAT}`)
-	);
+	await expect(page).toHaveURL(/\/stop\//);
+	// lat/lon in the URL are the stop's coordinates, not the user's — no fixed value to assert.
 
 	// Detail page loads and shows the map.
 	await expect(page.locator('.map')).toBeVisible({ timeout: 15_000 });
