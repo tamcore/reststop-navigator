@@ -3,6 +3,7 @@
 	import { onDestroy, onMount, tick } from 'svelte';
 	import { ApiError, fetchStopDetail } from '$lib/api/client';
 	import { geo, kmh, type GeoState } from '$lib/stores/geo';
+	import { demo } from '$lib/stores/demo';
 	import type { DetailResponse } from '$lib/types/api';
 
 	let detail = $state<DetailResponse | null>(null);
@@ -20,6 +21,7 @@
 	let stopMarker: ReturnType<LeafletNS['marker']> | null = null;
 	let line: ReturnType<LeafletNS['polyline']> | null = null;
 	let geoUnsub: (() => void) | null = null;
+	let demoUnsub: (() => void) | null = null;
 
 	function distanceM(a: { lat: number; lon: number }, b: { lat: number; lon: number }): number {
 		const R = 6371008.8;
@@ -148,11 +150,15 @@
 		});
 		stopMarker = L.marker([detail.stop.lat, detail.stop.lon], { icon: stopIcon }).addTo(map);
 
-		geo.start();
+		demoUnsub = demo.subscribe((active) => {
+			if (active) geo.startDemo();
+			else geo.start();
+		});
 		geoUnsub = geo.subscribe((s) => updateLive(s));
 	});
 
 	onDestroy(() => {
+		demoUnsub?.();
 		geoUnsub?.();
 		if (map) map.remove();
 		geo.stop();

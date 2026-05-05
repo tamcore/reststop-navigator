@@ -116,6 +116,43 @@ describe('geo store', () => {
 		expect(kmh(-1)).toBe(0);
 		expect(kmh(10)).toBeCloseTo(36);
 	});
+
+	it('handles non-permission geolocation error as unavailable', async () => {
+		const { geo } = await import('./geo');
+		geo.start();
+		fake.error(2); // POSITION_UNAVAILABLE
+		expect(get(geo).status).toBe('unavailable');
+	});
+
+	it('startDemo emits live state with DEMO_POSITION coords', async () => {
+		const { geo, DEMO_POSITION } = await import('./geo');
+		geo.startDemo();
+		const s = get(geo);
+		expect(s.status).toBe('live');
+		if (s.status === 'live') {
+			expect(s.lat).toBe(DEMO_POSITION.lat);
+			expect(s.lon).toBe(DEMO_POSITION.lon);
+			expect(s.heading).toBe(DEMO_POSITION.heading);
+			expect(s.speed).toBe(DEMO_POSITION.speed);
+			expect(s.accuracy).toBe(DEMO_POSITION.accuracy);
+		}
+	});
+
+	it('startDemo clears an active real watch', async () => {
+		const { geo } = await import('./geo');
+		geo.start();
+		expect(fake.clearedIds.length).toBe(0);
+		geo.startDemo();
+		expect(fake.clearedIds.length).toBe(1);
+	});
+
+	it('start() resumes real watchPosition after startDemo()', async () => {
+		const { geo } = await import('./geo');
+		geo.startDemo();
+		expect(fake.watchCount).toBe(0);
+		geo.start();
+		expect(fake.watchCount).toBe(1);
+	});
 });
 
 describe('geo store without navigator.geolocation', () => {
@@ -132,5 +169,15 @@ describe('geo store without navigator.geolocation', () => {
 		const { geo } = await import('./geo');
 		geo.start();
 		expect(get(geo).status).toBe('unavailable');
+	});
+
+	it('startDemo still emits live state without geolocation', async () => {
+		const { geo, DEMO_POSITION } = await import('./geo');
+		geo.startDemo();
+		const s = get(geo);
+		expect(s.status).toBe('live');
+		if (s.status === 'live') {
+			expect(s.lat).toBe(DEMO_POSITION.lat);
+		}
 	});
 });

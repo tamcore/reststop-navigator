@@ -9,6 +9,7 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"test:unit": "vitest run",
 		"test:unit:watch": "vitest",
+		"test:coverage": "vitest run --coverage",
 		"test": "vitest run"
 	},
 	"devDependencies": {
@@ -19,6 +20,7 @@
 		"@testing-library/jest-dom": "^6.9.1",
 		"@testing-library/svelte": "^5.3.1",
 		"@types/leaflet": "^1.9.21",
+		"@vitest/coverage-v8": "^4.1.5",
 		"jsdom": "^29.0.1",
 		"svelte": "^5.55.1",
 		"svelte-check": "^4.4.6",

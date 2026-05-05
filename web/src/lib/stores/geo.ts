@@ -1,5 +1,13 @@
 import { writable } from 'svelte/store';
 
+export const DEMO_POSITION = {
+	lat: 50.06,
+	lon: 8.87,
+	heading: 75,
+	speed: 33,
+	accuracy: 5
+} as const;
+
 export type GeoState =
 	| { status: 'idle' }
 	| { status: 'unavailable' }
@@ -56,7 +64,19 @@ function createGeoStore() {
 		watchId = null;
 	}
 
-	return { subscribe: inner.subscribe, start, stop };
+	function startDemo() {
+		if (watchId !== null && typeof navigator !== 'undefined' && 'geolocation' in navigator) {
+			navigator.geolocation.clearWatch(watchId);
+		}
+		watchId = null;
+		inner.set({
+			status: 'live',
+			...DEMO_POSITION,
+			timestamp: Date.now()
+		});
+	}
+
+	return { subscribe: inner.subscribe, start, stop, startDemo };
 }
 
 export const geo = createGeoStore();

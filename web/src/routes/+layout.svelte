@@ -1,6 +1,8 @@
 <script lang="ts">
 	import '../styles/global.css';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+	import DemoBadge from '$lib/components/DemoBadge.svelte';
+	import { demo } from '$lib/stores/demo';
 	let { children } = $props();
 </script>
 
@@ -12,6 +14,8 @@
 	<ThemeToggle />
 </header>
 
+<DemoBadge />
+
 <main>
 	{@render children?.()}
 </main>
@@ -20,6 +24,10 @@
 	<span>OSM data</span>
 	<span class="dot">·</span>
 	<span>DE / AT / SK / CZ</span>
+	<span class="dot">·</span>
+	<button type="button" class="demo-toggle" onclick={() => demo.toggle()}>
+		{$demo ? 'Exit demo' : 'Demo mode'}
+	</button>
 </footer>
 
 <style>
@@ -85,5 +93,26 @@
 	}
 	.dot {
 		color: var(--accent);
+	}
+	.demo-toggle {
+		background: none;
+		border: none;
+		padding: 0;
+		font-family: inherit;
+		font-size: inherit;
+		font-weight: inherit;
+		letter-spacing: inherit;
+		text-transform: inherit;
+		color: var(--muted-2);
+		cursor: pointer;
+	}
+	.demo-toggle:hover {
+		color: var(--accent);
+		text-decoration: underline;
+	}
+	.demo-toggle:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+		border-radius: 2px;
 	}
 </style>

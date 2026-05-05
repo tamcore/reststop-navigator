@@ -3,6 +3,7 @@
 	import { ApiError, fetchUpcoming } from '$lib/api/client';
 	import { filters } from '$lib/stores/filters';
 	import { geo, kmh, type GeoState } from '$lib/stores/geo';
+	import { demo } from '$lib/stores/demo';
 	import FilterChips from '$lib/components/FilterChips.svelte';
 	import StopCard from '$lib/components/StopCard.svelte';
 	import RoadShield from '$lib/components/RoadShield.svelte';
@@ -18,6 +19,7 @@
 	let inflight: AbortController | null = null;
 	let lastUnsub: (() => void) | null = null;
 	let lastFiltersUnsub: (() => void) | null = null;
+	let lastDemoUnsub: (() => void) | null = null;
 
 	function activeFilterKeys(s: Set<FilterKey>): FilterKey[] {
 		return ALL_FILTERS.filter((k) => s.has(k));
@@ -64,7 +66,10 @@
 	}
 
 	onMount(() => {
-		geo.start();
+		lastDemoUnsub = demo.subscribe((active) => {
+			if (active) geo.startDemo();
+			else geo.start();
+		});
 		lastUnsub = geo.subscribe((s) => {
 			if (pollTimer) clearInterval(pollTimer);
 			if (s.status === 'live') {
@@ -86,6 +91,7 @@
 		inflight?.abort();
 		lastUnsub?.();
 		lastFiltersUnsub?.();
+		lastDemoUnsub?.();
 	});
 </script>
 

@@ -6,6 +6,8 @@ A PWA that, given your live GPS, identifies which highway and direction you're d
 
 When you've picked one, the detail page hands off to Google Maps, Apple Maps, or Waze with the rest stop as a destination.
 
+No GPS? Click **Demo mode** in the footer to explore the app with a fixed A3 Frankfurt → Hanau fixture — same as the screenshots above.
+
 <p align="center">
   <img src="docs/screenshots/list.png" alt="Upcoming rest stops along the route, filterable by amenity" width="320" />
   &nbsp;
