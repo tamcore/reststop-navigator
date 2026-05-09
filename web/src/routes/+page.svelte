@@ -1,108 +1,19 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
-	import { ApiError, fetchUpcoming } from '$lib/api/client';
-	import { filters } from '$lib/stores/filters';
-	import { geo, kmh, type GeoState } from '$lib/stores/geo';
-	import { demo } from '$lib/stores/demo';
+	import { geo, kmh } from '$lib/stores/geo';
+	import { stopsPoller } from '$lib/stores/stops';
 	import FilterChips from '$lib/components/FilterChips.svelte';
 	import StopCard from '$lib/components/StopCard.svelte';
 	import RoadShield from '$lib/components/RoadShield.svelte';
-	import { ALL_FILTERS, type FilterKey, type StopInfo, type Road } from '$lib/types/api';
-
-	let stops: StopInfo[] = $state([]);
-	let road: Road | null = $state(null);
-	let reason = $state<string | null>(null);
-	let lastError = $state<string | null>(null);
-	let loading = $state(false);
-
-	let pollTimer: ReturnType<typeof setInterval> | null = null;
-	let inflight: AbortController | null = null;
-	let lastUnsub: (() => void) | null = null;
-	let lastFiltersUnsub: (() => void) | null = null;
-	let lastDemoUnsub: (() => void) | null = null;
-
-	function activeFilterKeys(s: Set<FilterKey>): FilterKey[] {
-		return ALL_FILTERS.filter((k) => s.has(k));
-	}
-	function getCurrentFilters(): Set<FilterKey> {
-		let s = new Set<FilterKey>();
-		const u = filters.subscribe((v) => (s = v));
-		u();
-		return s;
-	}
-	function pollIntervalMS(state: GeoState): number {
-		if (state.status !== 'live') return 60_000;
-		const v = kmh(state.speed);
-		return v > 20 ? 15_000 : 60_000;
-	}
-
-	async function refresh(state: GeoState) {
-		if (state.status !== 'live') return;
-		inflight?.abort();
-		inflight = new AbortController();
-		loading = true;
-		lastError = null;
-		try {
-			const speedKMH = kmh(state.speed);
-			const res = await fetchUpcoming({
-				lat: state.lat,
-				lon: state.lon,
-				heading: state.heading ?? 0,
-				speed: speedKMH,
-				filters: activeFilterKeys(getCurrentFilters()),
-				limit: 10,
-				signal: inflight.signal
-			});
-			stops = res.stops;
-			road = res.road ?? null;
-			reason = res.reason ?? null;
-		} catch (err) {
-			if (err instanceof DOMException && err.name === 'AbortError') return;
-			if (err instanceof ApiError) lastError = err.message;
-			else lastError = 'Network error';
-		} finally {
-			loading = false;
-		}
-	}
-
-	onMount(() => {
-		lastDemoUnsub = demo.subscribe((active) => {
-			if (active) geo.startDemo();
-			else geo.start();
-		});
-		lastUnsub = geo.subscribe((s) => {
-			if (pollTimer) clearInterval(pollTimer);
-			if (s.status === 'live') {
-				void refresh(s);
-				pollTimer = setInterval(() => void refresh(s), pollIntervalMS(s));
-			}
-		});
-		lastFiltersUnsub = filters.subscribe(() => {
-			let cur: GeoState = { status: 'idle' };
-			const u = geo.subscribe((v) => (cur = v));
-			u();
-			void refresh(cur);
-		});
-	});
-
-	onDestroy(() => {
-		geo.stop();
-		if (pollTimer) clearInterval(pollTimer);
-		inflight?.abort();
-		lastUnsub?.();
-		lastFiltersUnsub?.();
-		lastDemoUnsub?.();
-	});
 </script>
 
 <section class="hero">
-	{#if $geo.status === 'live' && road}
-		<RoadShield ref={road.ref ?? ''} direction={road.direction ?? ''} name={road.name ?? ''} />
+	{#if $geo.status === 'live' && $stopsPoller.road}
+		<RoadShield ref={$stopsPoller.road.ref ?? ''} direction={$stopsPoller.road.direction ?? ''} name={$stopsPoller.road.name ?? ''} />
 		<div class="speed">
 			<span class="speed-num mono">{kmh($geo.speed).toFixed(0)}</span>
 			<span class="speed-unit">km/h</span>
 		</div>
-	{:else if $geo.status === 'live' && !road}
+	{:else if $geo.status === 'live' && !$stopsPoller.road}
 		<div class="hero-empty">
 			<span class="hero-empty-label">Standby</span>
 			<span class="hero-empty-msg">No motorway match yet.</span>
@@ -131,16 +42,16 @@
 
 <div class="section-label">Next stops</div>
 
-{#if lastError}
-	<p class="error">{lastError}</p>
+{#if $stopsPoller.lastError}
+	<p class="error">{$stopsPoller.lastError}</p>
 {/if}
 
-{#if reason === 'outside-supported-area'}
+{#if $stopsPoller.reason === 'outside-supported-area'}
 	<div class="info-panel">
 		<div class="info-title">Outside coverage</div>
 		<p>This MVP only tracks rest stops in 🇩🇪 Germany, 🇦🇹 Austria, 🇸🇰 Slovakia and 🇨🇿 Czechia.</p>
 	</div>
-{:else if reason === 'off-highway-or-wrong-direction'}
+{:else if $stopsPoller.reason === 'off-highway-or-wrong-direction'}
 	<div class="info-panel">
 		<div class="info-title">Waiting for motorway match</div>
 		<p>We only track motorways (Autobahnen). Keep driving until you're on one of these:</p>
@@ -168,12 +79,12 @@
 		</ul>
 		<p class="hint">Schnellstraßen / Bundesstraßen / city expressways aren't covered yet.</p>
 	</div>
-{:else if stops.length === 0 && !loading && $geo.status === 'live'}
+{:else if $stopsPoller.stops.length === 0 && !$stopsPoller.loading && $geo.status === 'live'}
 	<p class="muted">No upcoming stops match your filters.</p>
 {/if}
 
 <ol class="stop-list">
-	{#each stops as stop, i (stop.id)}
+	{#each $stopsPoller.stops as stop, i (stop.id)}
 		<li style="--i: {i}">
 			<StopCard {stop} />
 		</li>

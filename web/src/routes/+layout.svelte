@@ -1,9 +1,28 @@
 <script lang="ts">
 	import '../styles/global.css';
+	import { onDestroy, onMount } from 'svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import DemoBadge from '$lib/components/DemoBadge.svelte';
 	import { demo } from '$lib/stores/demo';
+	import { geo } from '$lib/stores/geo';
+	import { stopsPoller } from '$lib/stores/stops';
 	let { children } = $props();
+
+	let demoUnsub: (() => void) | null = null;
+
+	onMount(() => {
+		demoUnsub = demo.subscribe((active) => {
+			if (active) geo.startDemo();
+			else geo.start();
+		});
+		stopsPoller.start();
+	});
+
+	onDestroy(() => {
+		demoUnsub?.();
+		stopsPoller.stop();
+		geo.stop();
+	});
 </script>
 
 <header class="app-header">
