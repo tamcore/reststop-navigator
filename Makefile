@@ -5,11 +5,13 @@ BRANCH  := $$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)
 
 LDFLAGS := -s -w
 
-IMAGE_REGISTRY ?=
+IMAGE_REGISTRY ?= reg.meh.wf
 IMAGE_NAME     ?= reststop-navigator
 IMAGE_TAG      ?= dev
 DEPLOY_NS      ?= reststop-navigator
 INGRESS_HOST   ?=
+KUBE_CONTEXT   ?=
+KUBECTL_CTX    := $(if $(KUBE_CONTEXT),--context $(KUBE_CONTEXT),)
 
 .PHONY: help build test lint fmt vet golangci-lint helm-lint goreleaser-check coverage clean dev-deploy-k8s
 
@@ -75,7 +77,7 @@ dev-deploy-k8s: ## Build dev image, push to IMAGE_REGISTRY, deploy to K8s namesp
 	echo "Using digest: $$IMAGE_DIGEST"; \
 	echo ""; \
 	echo "Ensuring namespace $(DEPLOY_NS) exists..."; \
-	kubectl get namespace $(DEPLOY_NS) >/dev/null 2>&1 || kubectl create namespace $(DEPLOY_NS); \
+	kubectl $(KUBECTL_CTX) get namespace $(DEPLOY_NS) >/dev/null 2>&1 || kubectl $(KUBECTL_CTX) create namespace $(DEPLOY_NS); \
 	echo ""; \
 	echo "Deploying to namespace $(DEPLOY_NS)..."; \
 	helm template reststop-navigator ./charts/reststop-navigator \
@@ -85,7 +87,7 @@ dev-deploy-k8s: ## Build dev image, push to IMAGE_REGISTRY, deploy to K8s namesp
 		--set image.digest="$$IMAGE_DIGEST" \
 		--set ingress.hosts[0]="$(INGRESS_HOST)" \
 		--set ingress.tls[0].hosts[0]="$(INGRESS_HOST)" \
-	| kubectl apply -n $(DEPLOY_NS) -f - --wait
+	| kubectl $(KUBECTL_CTX) apply -n $(DEPLOY_NS) -f - --wait
 	@echo ""
 	@echo "Deployment dispatched. Watch:"
 	@echo "  kubectl -n $(DEPLOY_NS) rollout status deploy/reststop-navigator"

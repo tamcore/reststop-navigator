@@ -52,10 +52,14 @@ For iterating on a change without cutting a tag. Reads required env vars from th
 ```sh
 IMAGE_REGISTRY=<your-registry> \
 INGRESS_HOST=<your-fqdn> \
+KUBE_CONTEXT=<your-context> \
 make dev-deploy-k8s
 ```
 
-The Makefile fails fast if either env var is unset. It:
+`IMAGE_REGISTRY` and `INGRESS_HOST` are required (the Makefile fails fast if
+either is unset). `KUBE_CONTEXT` is optional — when set, every `kubectl`
+invocation receives `--context $KUBE_CONTEXT`; when omitted, kubectl uses the
+current context. It:
 
 1. Builds a multi-stage Docker image via `Dockerfile.dev` (frontend stage → backend stage with `-tags prodfrontend` → distroless final image).
 2. Pushes to `${IMAGE_REGISTRY}/reststop-navigator:dev`.
