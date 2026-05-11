@@ -24,7 +24,10 @@ function activeFilterKeys(s: Set<FilterKey>): FilterKey[] {
 	return ALL_FILTERS.filter((k) => s.has(k));
 }
 
-function pollIntervalMS(state: GeoState): number {
+const BURST_INTERVAL_MS = 3_000;
+const BURST_WINDOW_MS = 30_000;
+
+function normalIntervalMS(state: GeoState): number {
 	if (state.status !== 'live') return 60_000;
 	const v = kmh(state.speed);
 	return v > 20 ? 15_000 : 60_000;
@@ -39,6 +42,20 @@ function createStopsStore() {
 	let filtersUnsub: (() => void) | null = null;
 	let running = false;
 
+	// Burst-mode tracking
+	let liveStartTime: number | null = null;
+	let burstActive = false;
+
+	function isBurstPhase(): boolean {
+		if (!burstActive || liveStartTime === null) return false;
+		return Date.now() - liveStartTime < BURST_WINDOW_MS;
+	}
+
+	function pollIntervalMS(state: GeoState): number {
+		if (isBurstPhase()) return BURST_INTERVAL_MS;
+		return normalIntervalMS(state);
+	}
+
 	async function refresh(state: GeoState) {
 		if (state.status !== 'live') return;
 		inflight?.abort();
@@ -51,6 +68,7 @@ function createStopsStore() {
 				lon: state.lon,
 				heading: state.heading ?? 0,
 				speed: speedKMH,
+				accuracy: state.accuracy,
 				filters: activeFilterKeys(get(filters)),
 				limit: 10,
 				signal: inflight.signal
@@ -62,6 +80,12 @@ function createStopsStore() {
 				lastError: null,
 				loading: false
 			});
+
+			// Exit burst mode on successful highway match
+			if (res.road && burstActive) {
+				burstActive = false;
+				rescheduleTimer(state);
+			}
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'AbortError') return;
 			const msg = err instanceof ApiError ? err.message : 'Network error';
@@ -69,11 +93,29 @@ function createStopsStore() {
 		}
 	}
 
+	// rescheduleTimer resets the poll timer without an immediate refresh.
+	function rescheduleTimer(state: GeoState) {
+		if (pollTimer) clearInterval(pollTimer);
+		if (state.status === 'live') {
+			const interval = pollIntervalMS(state);
+			pollTimer = setInterval(() => void refresh(state), interval);
+		}
+	}
+
 	function schedulePoll(state: GeoState) {
 		if (pollTimer) clearInterval(pollTimer);
 		if (state.status === 'live') {
 			void refresh(state);
-			pollTimer = setInterval(() => void refresh(state), pollIntervalMS(state));
+			const interval = pollIntervalMS(state);
+			pollTimer = setInterval(() => {
+				// Check if burst window expired mid-interval
+				if (burstActive && !isBurstPhase()) {
+					burstActive = false;
+					rescheduleTimer(state);
+					return;
+				}
+				void refresh(state);
+			}, interval);
 		}
 	}
 
@@ -81,7 +123,14 @@ function createStopsStore() {
 		if (running) return;
 		running = true;
 
-		geoUnsub = geo.subscribe((s) => schedulePoll(s));
+		geoUnsub = geo.subscribe((s) => {
+			// Detect transition to live → start burst mode
+			if (s.status === 'live' && liveStartTime === null) {
+				liveStartTime = Date.now();
+				burstActive = true;
+			}
+			schedulePoll(s);
+		});
 		// Skip the immediate subscription call — geo already triggered the first fetch.
 		let filterInit = true;
 		filtersUnsub = filters.subscribe(() => {
@@ -107,6 +156,8 @@ function createStopsStore() {
 		filtersUnsub?.();
 		geoUnsub = null;
 		filtersUnsub = null;
+		liveStartTime = null;
+		burstActive = false;
 	}
 
 	return {

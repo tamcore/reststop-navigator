@@ -66,13 +66,19 @@ func (h *Stops) upcoming(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	accuracy, err := optionalFloat(q, "accuracy", 0)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	req := stops.UpcomingRequest{
-		Pos:     geo.LatLng{Lat: lat, Lon: lon},
-		Heading: heading,
-		Speed:   speed,
-		Filters: parseFilters(q.Get("filters")),
-		Limit:   limit,
+		Pos:      geo.LatLng{Lat: lat, Lon: lon},
+		Heading:  heading,
+		Speed:    speed,
+		Accuracy: accuracy,
+		Filters:  parseFilters(q.Get("filters")),
+		Limit:    limit,
 	}
 
 	resp, err := h.svc.Upcoming(r.Context(), req)

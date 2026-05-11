@@ -40,11 +40,12 @@ type Filters struct {
 
 // UpcomingRequest is what handlers translate query params into.
 type UpcomingRequest struct {
-	Pos     geo.LatLng
-	Heading float64
-	Speed   float64 // km/h
-	Filters Filters
-	Limit   int
+	Pos      geo.LatLng
+	Heading  float64
+	Speed    float64 // km/h
+	Accuracy float64 // GPS accuracy in meters (0 = not provided)
+	Filters  Filters
+	Limit    int
 }
 
 // Road describes the matched motorway/trunk way.
@@ -97,9 +98,10 @@ type DetailResponse struct {
 var ErrStopNotFound = fmt.Errorf("stops: not found")
 
 const (
-	minSpeedKMH  = 60.0
-	defaultLimit = 10
-	maxLimit     = 25
+	minSpeedKMH         = 60.0
+	defaultLimit        = 10
+	maxLimit            = 25
+	maxMatchDistanceCap = 250.0 // upper bound for accuracy-widened match radius
 )
 
 // countryBBoxes are coarse bounding boxes for fast country resolution.
@@ -125,7 +127,9 @@ func (s *Service) Upcoming(ctx context.Context, req UpcomingRequest) (UpcomingRe
 		return UpcomingResponse{}, err
 	}
 
-	match, ok := geo.NearestForwardWay(req.Pos, req.Heading, ds.Ways, geo.MatchOpts{})
+	match, ok := geo.NearestForwardWay(req.Pos, req.Heading, ds.Ways, geo.MatchOpts{
+		MaxDistanceMeters: matchRadiusFromAccuracy(req.Accuracy),
+	})
 	if !ok {
 		return UpcomingResponse{
 			Country: string(country),
@@ -242,6 +246,23 @@ func deepLinks(p geo.LatLng) DeepLinks {
 		Apple:  fmt.Sprintf("https://maps.apple.com/?daddr=%g,%g&dirflg=d", p.Lat, p.Lon),
 		Waze:   fmt.Sprintf("https://waze.com/ul?ll=%g,%g&navigate=yes", p.Lat, p.Lon),
 	}
+}
+
+// matchRadiusFromAccuracy computes a dynamic MaxDistanceMeters based on GPS
+// accuracy. Returns 0 (use default 80m) when accuracy is low/absent, otherwise
+// max(80, accuracy) capped at 250m.
+func matchRadiusFromAccuracy(accuracy float64) float64 {
+	if accuracy <= 0 {
+		return 0 // let NearestForwardWay use its default (80m)
+	}
+	r := accuracy
+	if r < 80 {
+		r = 80
+	}
+	if r > maxMatchDistanceCap {
+		r = maxMatchDistanceCap
+	}
+	return r
 }
 
 func resolveCountry(p geo.LatLng) overpass.CountryISO {

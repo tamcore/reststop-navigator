@@ -45,8 +45,9 @@ This file explains how that works. Pair it with [development.md](development.md)
    - Miss → call Overpass with a bbox query (`internal/overpass/queries.go`), decode (`decode.go`), spatial-join amenities within 350 m of each stop centroid (`enrich.go`), persist with 7-day TTL.
 5. **Match the road & direction** (`internal/geo/match.go`):
    - Iterate ways within ~5 km bbox.
-   - For each segment: `distancePointToSegment ≤ 80 m` AND `angleDiff(heading, segmentBearing) ≤ 60°` → candidate.
-   - Pick min-distance candidate. None → `204 { reason: "off-highway-or-wrong-direction" }`.
+   - For each segment: `distancePointToSegment ≤ maxDist` AND `angleDiff(heading, segmentBearing) ≤ 60°` → candidate.
+   - `maxDist` is accuracy-aware: `max(80, gpsAccuracy)` capped at 250 m (default 80 m when accuracy not provided). This widens the match radius for early imprecise GPS fixes, tightening as accuracy improves.
+   - Pick min-distance candidate. None → `200 { reason: "off-highway-or-wrong-direction" }`.
 6. **Stops ahead** (`internal/geo/ahead.go`):
    - Haversine distance from user to each stop on the matched way.
    - Heading-vector dot product filters out stops behind the driver.
@@ -69,7 +70,11 @@ Single-carriageway segments (some rural SK/CZ, AT B-roads) carry both directions
 
 - **Two routes:** `/` (live list) and `/stop/[id]` (detail + Leaflet map + nav handoff).
 - **Stores:** `geo.ts` wraps `watchPosition`, `filters.ts` is localStorage-backed, `theme.ts` is cookie-backed (10-year TTL, three states: `auto` / `light` / `dark`).
-- **Polling cadence:** `/api/stops/upcoming` every 15 s while moving (>20 km/h), 60 s otherwise.
+- **Polling cadence:** `/api/stops/upcoming` with burst + normal modes:
+  - **Burst mode** (first 30 s after GPS goes `live`): 3 s interval for fast initial feedback. Exits early when a highway match is found.
+  - **Normal mode**: 15 s while moving (>20 km/h), 60 s otherwise.
+  - GPS accuracy is forwarded to the backend so the match radius can widen for imprecise early fixes.
+- **GeoStatusPanel:** Shown in the hero area when GPS is live but no highway is matched yet. Displays real-time telemetry (coordinates, accuracy with green/amber/red colour coding, heading as cardinal + degrees, speed) and highway search status. Works identically in demo mode.
 - **Detail map:** Leaflet 1.9, OSM tiles, dynamic import for code-splitting. The stop marker is an inline-SVG `divIcon` (no asset dependency — Vite-bundled Leaflet can't resolve `marker-icon.png`).
 - **PWA shell:** `manifest.webmanifest` + `display: standalone`. API responses are network-first; last response shown stale-with-banner offline.
 - **Deep links:** Google Maps (waypoint-add when a route is active), Apple Maps (open destination), Waze (replaces active route — labelled).

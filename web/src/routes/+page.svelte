@@ -4,6 +4,7 @@
 	import FilterChips from '$lib/components/FilterChips.svelte';
 	import StopCard from '$lib/components/StopCard.svelte';
 	import RoadShield from '$lib/components/RoadShield.svelte';
+	import GeoStatusPanel from '$lib/components/GeoStatusPanel.svelte';
 </script>
 
 <section class="hero">
@@ -14,13 +15,11 @@
 			<span class="speed-unit">km/h</span>
 		</div>
 	{:else if $geo.status === 'live' && !$stopsPoller.road}
-		<div class="hero-empty">
-			<span class="hero-empty-label">Standby</span>
-			<span class="hero-empty-msg">No motorway match yet.</span>
-		</div>
+		<GeoStatusPanel geo={$geo} reason={$stopsPoller.reason} />
 	{:else if $geo.status === 'idle' || $geo.status === 'pending'}
 		<div class="hero-empty">
 			<span class="hero-empty-label">Acquiring GPS</span>
+			<span class="hero-empty-msg">Waiting for satellite fix…</span>
 			<div class="dots"><i></i><i></i><i></i></div>
 		</div>
 	{:else if $geo.status === 'permission-denied'}

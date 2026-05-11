@@ -247,6 +247,59 @@ func mustDecode(t *testing.T, r io.Reader, v interface{}) {
 	}
 }
 
+func TestUpcoming_ParsesAccuracy(t *testing.T) {
+	t.Parallel()
+	fs := &fakeService{}
+	srv := mountServer(handlers.NewStops(fs))
+	t.Cleanup(srv.Close)
+
+	resp, err := http.Get(srv.URL + "/api/stops/upcoming?lat=48&lon=11&heading=90&accuracy=150")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = resp.Body.Close() })
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d", resp.StatusCode)
+	}
+	if fs.gotRequest.Accuracy != 150 {
+		t.Errorf("accuracy = %v, want 150", fs.gotRequest.Accuracy)
+	}
+}
+
+func TestUpcoming_AccuracyDefaultsToZero(t *testing.T) {
+	t.Parallel()
+	fs := &fakeService{}
+	srv := mountServer(handlers.NewStops(fs))
+	t.Cleanup(srv.Close)
+
+	resp, err := http.Get(srv.URL + "/api/stops/upcoming?lat=48&lon=11&heading=90")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = resp.Body.Close() })
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d", resp.StatusCode)
+	}
+	if fs.gotRequest.Accuracy != 0 {
+		t.Errorf("accuracy = %v, want 0 (default)", fs.gotRequest.Accuracy)
+	}
+}
+
+func TestUpcoming_AccuracyBadValue400(t *testing.T) {
+	t.Parallel()
+	srv := mountServer(handlers.NewStops(&fakeService{}))
+	t.Cleanup(srv.Close)
+
+	resp, err := http.Get(srv.URL + "/api/stops/upcoming?lat=48&lon=11&heading=90&accuracy=abc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = resp.Body.Close() })
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", resp.StatusCode)
+	}
+}
+
 // guard against signature drift — the handler's service interface must accept
 // the test's fake.
 var _ handlers.StopsService = (*fakeService)(nil)

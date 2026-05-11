@@ -55,6 +55,14 @@ describe('fetchUpcoming', () => {
 		expect(url).not.toContain('speed=');
 		expect(url).not.toContain('filters=');
 		expect(url).not.toContain('limit=');
+		expect(url).not.toContain('accuracy=');
+	});
+
+	it('sends accuracy param when provided', async () => {
+		fetchSpy.mockResolvedValue(jsonResponse({ stops: [] }));
+		await fetchUpcoming({ lat: 48, lon: 11, accuracy: 150 });
+		const url = String(fetchSpy.mock.calls[0][0]);
+		expect(url).toContain('accuracy=150');
 	});
 
 	it('throws ApiError for non-2xx with json error body', async () => {

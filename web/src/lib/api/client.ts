@@ -14,6 +14,7 @@ export type UpcomingParams = {
 	lon: number;
 	heading?: number;
 	speed?: number;
+	accuracy?: number;
 	filters?: FilterKey[];
 	limit?: number;
 	signal?: AbortSignal;
@@ -40,6 +41,7 @@ export function fetchUpcoming(params: UpcomingParams): Promise<UpcomingResponse>
 	q.set('lon', String(params.lon));
 	if (params.heading !== undefined) q.set('heading', String(params.heading));
 	if (params.speed !== undefined) q.set('speed', String(params.speed));
+	if (params.accuracy !== undefined && params.accuracy > 0) q.set('accuracy', String(params.accuracy));
 	if (params.filters && params.filters.length > 0) q.set('filters', params.filters.join(','));
 	if (params.limit) q.set('limit', String(params.limit));
 	return request<UpcomingResponse>(`/api/stops/upcoming?${q.toString()}`, { signal: params.signal });

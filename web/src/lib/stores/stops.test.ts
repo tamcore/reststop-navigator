@@ -198,4 +198,115 @@ describe('stops store', () => {
 
 		stopsPoller.stop();
 	});
+
+	it('passes accuracy from geo state to API', async () => {
+		const { stopsPoller } = await import('./stops');
+		const { geo } = await import('./geo');
+
+		// Demo mode sets accuracy=5
+		geo.startDemo();
+		stopsPoller.start();
+		await vi.advanceTimersByTimeAsync(0);
+
+		expect(fetchSpy).toHaveBeenCalled();
+		const url = String(fetchSpy.mock.calls[0][0]);
+		expect(url).toContain('accuracy=5');
+
+		stopsPoller.stop();
+	});
+
+	it('uses burst interval (3s) for first 30s after GPS goes live', async () => {
+		// No road in response — stay in burst mode
+		fetchSpy.mockResolvedValue(
+			jsonResponse({
+				stops: [],
+				country: 'DE',
+				reason: 'off-highway-or-wrong-direction'
+			})
+		);
+
+		const { stopsPoller } = await import('./stops');
+		const { geo } = await import('./geo');
+
+		geo.startDemo();
+		stopsPoller.start();
+		await vi.advanceTimersByTimeAsync(0);
+
+		const callsAfterFirst = fetchSpy.mock.calls.length;
+		expect(callsAfterFirst).toBe(1);
+
+		// Advance 3s — burst interval should trigger another fetch
+		await vi.advanceTimersByTimeAsync(3_000);
+		expect(fetchSpy.mock.calls.length).toBe(2);
+
+		// Advance another 3s — still in burst
+		await vi.advanceTimersByTimeAsync(3_000);
+		expect(fetchSpy.mock.calls.length).toBe(3);
+
+		stopsPoller.stop();
+	});
+
+	it('exits burst mode when highway match is found', async () => {
+		// Response includes a road — should exit burst
+		fetchSpy.mockResolvedValue(
+			jsonResponse({
+				stops: [{ id: 'node/1', name: 'Test', kind: 'services', lat: 0, lon: 0, distance_m: 1000, eta_seconds: 60, amenities: { fuel: true, charging: false, food: false, toilets: false, open24h: false, dog: false } }],
+				road: { ref: 'A3', direction: 'East' },
+				country: 'DE'
+			})
+		);
+
+		const { stopsPoller } = await import('./stops');
+		const { geo } = await import('./geo');
+
+		geo.startDemo();
+		stopsPoller.start();
+		await vi.advanceTimersByTimeAsync(0);
+		expect(fetchSpy.mock.calls.length).toBe(1);
+
+		// After match, should switch to normal cadence (15s for demo speed)
+		// Advance 3s — should NOT trigger if burst exited
+		await vi.advanceTimersByTimeAsync(3_000);
+		// If burst exited, call count stays at 1 (next poll at 15s)
+		expect(fetchSpy.mock.calls.length).toBe(1);
+
+		// Advance to 15s — normal interval fires
+		await vi.advanceTimersByTimeAsync(12_000);
+		expect(fetchSpy.mock.calls.length).toBe(2);
+
+		stopsPoller.stop();
+	});
+
+	it('falls back to normal cadence after 30s burst window', async () => {
+		// No road in response — stay in burst for 30s
+		fetchSpy.mockResolvedValue(
+			jsonResponse({
+				stops: [],
+				country: 'DE',
+				reason: 'off-highway-or-wrong-direction'
+			})
+		);
+
+		const { stopsPoller } = await import('./stops');
+		const { geo } = await import('./geo');
+
+		geo.startDemo();
+		stopsPoller.start();
+		await vi.advanceTimersByTimeAsync(0);
+		expect(fetchSpy.mock.calls.length).toBe(1);
+
+		// Advance through 30s of burst (9 burst intervals fire at 3,6,9,...,27s; 30s exits burst)
+		await vi.advanceTimersByTimeAsync(30_000);
+		const callsAtBurstEnd = fetchSpy.mock.calls.length;
+		expect(callsAtBurstEnd).toBe(10); // 1 initial + 9 burst intervals
+
+		// After burst, next fetch should be at normal cadence (15s for demo speed = 33 m/s = ~119 km/h)
+		await vi.advanceTimersByTimeAsync(3_000);
+		expect(fetchSpy.mock.calls.length).toBe(callsAtBurstEnd); // no extra fetch at 3s
+
+		await vi.advanceTimersByTimeAsync(12_000);
+		expect(fetchSpy.mock.calls.length).toBe(callsAtBurstEnd + 1); // fetch at 15s
+
+		stopsPoller.stop();
+	});
 });

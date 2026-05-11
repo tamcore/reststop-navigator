@@ -256,6 +256,60 @@ func TestGet_NotFound(t *testing.T) {
 	}
 }
 
+func TestUpcoming_AccuracyWidensMatchRadius(t *testing.T) {
+	t.Parallel()
+	// Place user 150m from the highway — beyond default 80m, within accuracy-widened radius
+	ds := straightEastA8DE()
+	svc := stops.NewService(fakeTiles{ds: ds})
+
+	// First: with zero accuracy (default 80m), user at 150m should NOT match
+	resp, err := svc.Upcoming(context.Background(), stops.UpcomingRequest{
+		Pos:     geo.LatLng{Lat: 48.00135, Lon: 11.003}, // ~150m north of the highway at 48.000
+		Heading: 90,
+		Speed:   120,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Reason != "off-highway-or-wrong-direction" {
+		t.Fatalf("without accuracy, expected off-highway, got reason=%q road=%+v", resp.Reason, resp.Road)
+	}
+
+	// Now: with accuracy=200 (GPS is imprecise), match radius should widen to 200m
+	resp, err = svc.Upcoming(context.Background(), stops.UpcomingRequest{
+		Pos:      geo.LatLng{Lat: 48.00135, Lon: 11.003},
+		Heading:  90,
+		Speed:    120,
+		Accuracy: 200,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Road == nil || resp.Road.Ref != "A8" {
+		t.Errorf("with accuracy=200, expected A8 match, got reason=%q road=%+v", resp.Reason, resp.Road)
+	}
+}
+
+func TestUpcoming_AccuracyCappedAt250(t *testing.T) {
+	t.Parallel()
+	// Place user 300m from the highway — beyond the 250m cap
+	ds := straightEastA8DE()
+	svc := stops.NewService(fakeTiles{ds: ds})
+
+	resp, err := svc.Upcoming(context.Background(), stops.UpcomingRequest{
+		Pos:      geo.LatLng{Lat: 48.0027, Lon: 11.003}, // ~300m north
+		Heading:  90,
+		Speed:    120,
+		Accuracy: 500, // way beyond cap
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Reason != "off-highway-or-wrong-direction" {
+		t.Errorf("with 300m distance and capped accuracy, expected off-highway, got reason=%q", resp.Reason)
+	}
+}
+
 func equalStrings(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
