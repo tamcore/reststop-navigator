@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -33,6 +34,23 @@ func (f *fakeFetcher) Query(_ context.Context, q string) ([]byte, error) {
 		return nil, f.err
 	}
 	return f.response, nil
+}
+
+// slowFetcher blocks until its gate is released, then returns canned data.
+type slowFetcher struct {
+	gate     chan struct{}
+	calls    int32
+	response []byte
+}
+
+func (f *slowFetcher) Query(ctx context.Context, _ string) ([]byte, error) {
+	atomic.AddInt32(&f.calls, 1)
+	select {
+	case <-f.gate:
+		return f.response, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 func newRedis(t *testing.T) *redis.Client {
@@ -299,5 +317,85 @@ func TestGetCachedPayloadRoundtrips(t *testing.T) {
 	}
 	if len(ds.Ways) != 1 {
 		t.Fatalf("cached Ways = %d, want 1", len(ds.Ways))
+	}
+}
+
+func TestGetCompletesAfterCallerContextCancel(t *testing.T) {
+	rdb := newRedis(t)
+	gate := make(chan struct{})
+	fetcher := &slowFetcher{gate: gate, response: sampleOverpassResponse()}
+	c := NewTileCache(rdb, fetcher)
+	tile := Tile{South: 48.0, West: 11.0}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := c.Get(ctx, tile)
+		done <- err
+	}()
+
+	// Wait for the fetcher to be called, then cancel the caller's context.
+	time.Sleep(50 * time.Millisecond)
+	cancel()
+
+	// Release the fetcher — tile should still be cached.
+	close(gate)
+
+	// The caller gets the result despite the cancelled context.
+	if err := <-done; err != nil {
+		t.Fatalf("Get returned error after ctx cancel: %v", err)
+	}
+
+	// Verify the tile landed in Redis.
+	payload, err := rdb.Get(context.Background(), tileKey(tile)).Bytes()
+	if err != nil {
+		t.Fatalf("expected tile in cache after ctx cancel, redis error: %v", err)
+	}
+	var ds overpass.Dataset
+	if err := json.Unmarshal(payload, &ds); err != nil {
+		t.Fatalf("cached payload not valid: %v", err)
+	}
+	if len(ds.Ways) != 1 {
+		t.Fatalf("cached Ways = %d, want 1", len(ds.Ways))
+	}
+}
+
+func TestGetSingleflightCoalescesConcurrentFetches(t *testing.T) {
+	rdb := newRedis(t)
+	gate := make(chan struct{})
+	fetcher := &slowFetcher{gate: gate, response: sampleOverpassResponse()}
+	c := NewTileCache(rdb, fetcher)
+	tile := Tile{South: 48.0, West: 11.0}
+
+	const n = 5
+	errs := make([]error, n)
+	datasets := make([]overpass.Dataset, n)
+	var wg sync.WaitGroup
+	for i := range n {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			datasets[i], errs[i] = c.Get(context.Background(), tile)
+		}()
+	}
+
+	// Give goroutines time to enter singleflight, then release.
+	time.Sleep(50 * time.Millisecond)
+	close(gate)
+	wg.Wait()
+
+	for i := range n {
+		if errs[i] != nil {
+			t.Fatalf("goroutine %d: %v", i, errs[i])
+		}
+		if len(datasets[i].Ways) != 1 {
+			t.Fatalf("goroutine %d: Ways = %d, want 1", i, len(datasets[i].Ways))
+		}
+	}
+
+	// Only one Overpass call should have been made.
+	if got := atomic.LoadInt32(&fetcher.calls); got != 1 {
+		t.Fatalf("singleflight calls = %d, want 1", got)
 	}
 }

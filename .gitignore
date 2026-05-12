@@ -63,3 +63,4 @@ testdata/gpx/*.gpx
 
 # Agent-private notes (deployment env vars, FQDNs, kube-context names) — never commit
 AGENTS.md.local
+web/coverage/

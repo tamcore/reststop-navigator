@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/tamcore/reststop-navigator/internal/geo"
 	"github.com/tamcore/reststop-navigator/internal/overpass"
@@ -26,12 +27,14 @@ type OverpassFetcher interface {
 }
 
 // TileCache stores per-tile datasets in Redis. On miss it fetches from
-// Overpass for that tile only and writes the result back.
+// Overpass for that tile only and writes the result back. Concurrent
+// requests for the same tile are coalesced via singleflight.
 type TileCache struct {
 	rdb     *redis.Client
 	client  OverpassFetcher
 	ttl     time.Duration
 	missTTL time.Duration
+	flight  singleflight.Group
 }
 
 // TileOption configures NewTileCache.
@@ -103,6 +106,22 @@ func (c *TileCache) Get(ctx context.Context, t Tile) (overpass.Dataset, error) {
 		return overpass.Dataset{}, fmt.Errorf("tilecache: redis get: %w", err)
 	}
 
+	// Singleflight coalesces concurrent fetches for the same tile.
+	// Detach from the caller's context so that a client disconnect does not
+	// abort the Overpass fetch. Without this, rapid GPS-triggered request
+	// cancellations prevent the tile from ever being cached (starvation).
+	v, err, _ := c.flight.Do(key, func() (interface{}, error) {
+		fetchCtx := context.WithoutCancel(ctx)
+		return c.fetchAndCache(fetchCtx, t, key)
+	})
+	if err != nil {
+		return overpass.Dataset{}, err
+	}
+	return v.(overpass.Dataset), nil
+}
+
+// fetchAndCache queries Overpass for a tile and writes the result to Redis.
+func (c *TileCache) fetchAndCache(ctx context.Context, t Tile, key string) (overpass.Dataset, error) {
 	raw, err := c.client.Query(ctx, overpass.BBoxQuery(t.BBox()))
 	if err != nil {
 		return overpass.Dataset{}, fmt.Errorf("tilecache: overpass: %w", err)

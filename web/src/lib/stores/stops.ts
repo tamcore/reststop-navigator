@@ -26,11 +26,15 @@ function activeFilterKeys(s: Set<FilterKey>): FilterKey[] {
 
 const BURST_INTERVAL_MS = 3_000;
 const BURST_WINDOW_MS = 30_000;
+const SPEED_THRESHOLD_KMH = 20;
 
-function normalIntervalMS(state: GeoState): number {
-	if (state.status !== 'live') return 60_000;
-	const v = kmh(state.speed);
-	return v > 20 ? 15_000 : 60_000;
+function normalIntervalMS(speedKMH: number): number {
+	return speedKMH > SPEED_THRESHOLD_KMH ? 15_000 : 60_000;
+}
+
+function speedBucket(state: GeoState): 'fast' | 'slow' {
+	if (state.status !== 'live') return 'slow';
+	return kmh(state.speed) > SPEED_THRESHOLD_KMH ? 'fast' : 'slow';
 }
 
 function createStopsStore() {
@@ -42,6 +46,11 @@ function createStopsStore() {
 	let filtersUnsub: (() => void) | null = null;
 	let running = false;
 
+	// Latest geo state — read by refresh() so the poll timer always uses
+	// the most recent position without needing to restart on every update.
+	let latestGeo: GeoState = { status: 'idle' };
+	let lastSpeedBucket: 'fast' | 'slow' = 'slow';
+
 	// Burst-mode tracking
 	let liveStartTime: number | null = null;
 	let burstActive = false;
@@ -51,14 +60,18 @@ function createStopsStore() {
 		return Date.now() - liveStartTime < BURST_WINDOW_MS;
 	}
 
-	function pollIntervalMS(state: GeoState): number {
+	function pollIntervalMS(): number {
 		if (isBurstPhase()) return BURST_INTERVAL_MS;
-		return normalIntervalMS(state);
+		const v = latestGeo.status === 'live' ? kmh(latestGeo.speed) : 0;
+		return normalIntervalMS(v);
 	}
 
-	async function refresh(state: GeoState) {
+	async function refresh() {
+		const state = latestGeo;
 		if (state.status !== 'live') return;
-		inflight?.abort();
+		// Let any in-flight request complete — aborting it while the backend
+		// is fetching a cold Overpass tile would waste that work.
+		if (inflight) return;
 		inflight = new AbortController();
 		inner.update((s) => ({ ...s, loading: true, lastError: null }));
 		try {
@@ -73,6 +86,7 @@ function createStopsStore() {
 				limit: 10,
 				signal: inflight.signal
 			});
+			inflight = null;
 			inner.set({
 				stops: res.stops,
 				road: res.road ?? null,
@@ -84,9 +98,10 @@ function createStopsStore() {
 			// Exit burst mode on successful highway match
 			if (res.road && burstActive) {
 				burstActive = false;
-				rescheduleTimer(state);
+				rescheduleTimer();
 			}
 		} catch (err) {
+			inflight = null;
 			if (err instanceof DOMException && err.name === 'AbortError') return;
 			const msg = err instanceof ApiError ? err.message : 'Network error';
 			inner.update((s) => ({ ...s, lastError: msg, loading: false }));
@@ -94,27 +109,27 @@ function createStopsStore() {
 	}
 
 	// rescheduleTimer resets the poll timer without an immediate refresh.
-	function rescheduleTimer(state: GeoState) {
+	function rescheduleTimer() {
 		if (pollTimer) clearInterval(pollTimer);
-		if (state.status === 'live') {
-			const interval = pollIntervalMS(state);
-			pollTimer = setInterval(() => void refresh(state), interval);
+		if (latestGeo.status === 'live') {
+			const interval = pollIntervalMS();
+			pollTimer = setInterval(() => void refresh(), interval);
 		}
 	}
 
-	function schedulePoll(state: GeoState) {
+	function schedulePoll() {
 		if (pollTimer) clearInterval(pollTimer);
-		if (state.status === 'live') {
-			void refresh(state);
-			const interval = pollIntervalMS(state);
+		if (latestGeo.status === 'live') {
+			void refresh();
+			const interval = pollIntervalMS();
 			pollTimer = setInterval(() => {
 				// Check if burst window expired mid-interval
 				if (burstActive && !isBurstPhase()) {
 					burstActive = false;
-					rescheduleTimer(state);
+					rescheduleTimer();
 					return;
 				}
-				void refresh(state);
+				void refresh();
 			}, interval);
 		}
 	}
@@ -124,12 +139,23 @@ function createStopsStore() {
 		running = true;
 
 		geoUnsub = geo.subscribe((s) => {
-			// Detect transition to live → start burst mode
-			if (s.status === 'live' && liveStartTime === null) {
+			const wasLive = latestGeo.status === 'live';
+			const prevBucket = lastSpeedBucket;
+			latestGeo = s;
+			lastSpeedBucket = speedBucket(s);
+
+			if (s.status === 'live' && !wasLive) {
+				// Transition to live → start burst mode and begin polling.
 				liveStartTime = Date.now();
 				burstActive = true;
+				schedulePoll();
+				return;
 			}
-			schedulePoll(s);
+
+			// Adjust poll interval when speed crosses the threshold.
+			if (wasLive && lastSpeedBucket !== prevBucket) {
+				rescheduleTimer();
+			}
 		});
 		// Skip the immediate subscription call — geo already triggered the first fetch.
 		let filterInit = true;
@@ -138,8 +164,10 @@ function createStopsStore() {
 				filterInit = false;
 				return;
 			}
-			const cur = get(geo);
-			void refresh(cur);
+			// Abort inflight so the filter change is picked up immediately.
+			inflight?.abort();
+			inflight = null;
+			void refresh();
 		});
 	}
 
@@ -156,6 +184,8 @@ function createStopsStore() {
 		filtersUnsub?.();
 		geoUnsub = null;
 		filtersUnsub = null;
+		latestGeo = { status: 'idle' };
+		lastSpeedBucket = 'slow';
 		liveStartTime = null;
 		burstActive = false;
 	}

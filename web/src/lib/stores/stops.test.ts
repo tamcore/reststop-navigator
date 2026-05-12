@@ -309,4 +309,42 @@ describe('stops store', () => {
 
 		stopsPoller.stop();
 	});
+
+	it('does not abort inflight request on rapid geo updates', async () => {
+		let resolveFirst!: (value: Response) => void;
+		const slowResponse = new Promise<Response>((r) => (resolveFirst = r));
+		fetchSpy.mockReturnValueOnce(slowResponse);
+
+		const { stopsPoller } = await import('./stops');
+		const { geo } = await import('./geo');
+
+		geo.startDemo(); // triggers transition to live
+		stopsPoller.start();
+
+		// First fetch is now pending (slowResponse not yet resolved).
+		// Simulate rapid geo updates that would have previously aborted the request.
+		for (let i = 0; i < 5; i++) {
+			geo.startDemo();
+			await vi.advanceTimersByTimeAsync(0);
+		}
+
+		// Only 1 fetch should have been made — inflight was not aborted.
+		expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+		// Resolve the pending fetch.
+		resolveFirst(
+			jsonResponse({
+				stops: [{ id: 'node/1', name: 'Test', kind: 'services', lat: 0, lon: 0, distance_m: 1000, eta_seconds: 60, amenities: { fuel: true, charging: false, food: false, toilets: false, open24h: false, dog: false } }],
+				road: { ref: 'A3', direction: 'East' },
+				country: 'DE'
+			})
+		);
+		await vi.advanceTimersByTimeAsync(0);
+
+		const state = get(stopsPoller);
+		expect(state.stops).toHaveLength(1);
+		expect(state.loading).toBe(false);
+
+		stopsPoller.stop();
+	});
 });
