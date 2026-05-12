@@ -122,6 +122,50 @@
 			"lat": 50.060,
 			"lon": 8.897,
 			"tags": { "amenity": "restaurant", "name": "Autobahn Restaurant" }
+		},
+
+		{
+			"type": "way",
+			"id": 1004,
+			"tags": { "highway": "motorway", "oneway": "yes", "ref": "A3", "name": "Frankfurt - Nürnberg" },
+			"geometry": [
+				{ "lat": 49.7889, "lon": 10.1700 },
+				{ "lat": 49.7889, "lon": 10.1754 },
+				{ "lat": 49.7889, "lon": 10.1800 },
+				{ "lat": 49.7887, "lon": 10.1900 },
+				{ "lat": 49.7885, "lon": 10.2000 },
+				{ "lat": 49.7882, "lon": 10.2100 },
+				{ "lat": 49.7878, "lon": 10.2200 },
+				{ "lat": 49.7870, "lon": 10.2300 },
+				{ "lat": 49.7860, "lon": 10.2400 },
+				{ "lat": 49.7802, "lon": 10.2503 }
+			]
+		},
+		{
+			"type": "node",
+			"id": 2006,
+			"lat": 49.7882,
+			"lon": 10.2100,
+			"tags": {
+				"highway": "services",
+				"name": "Raststätte Würzburg-Süd",
+				"operator": "Tank & Rast",
+				"opening_hours": "24/7"
+			}
+		},
+		{
+			"type": "node",
+			"id": 2007,
+			"lat": 49.7860,
+			"lon": 10.2400,
+			"tags": { "highway": "rest_area", "name": "Parkplatz Maintal" }
+		},
+		{
+			"type": "node",
+			"id": 3006,
+			"lat": 49.7882,
+			"lon": 10.2098,
+			"tags": { "amenity": "fuel", "brand": "Total" }
 		}
 	]
 }

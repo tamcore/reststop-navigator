@@ -1,9 +1,5 @@
 import { expect, test } from '@playwright/test';
 
-// A3 east-bound Frankfurt → Hanau — same fixture as docs/screenshots.
-const DEMO_LAT = 50.06;
-const DEMO_LON = 8.87;
-
 // Deny geolocation to simulate a visitor with no GPS.
 test.use({ permissions: [] });
 
