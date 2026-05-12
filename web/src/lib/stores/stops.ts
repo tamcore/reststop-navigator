@@ -9,6 +9,7 @@ export type StopsState = {
 	road: Road | null;
 	reason: string | null;
 	lastError: string | null;
+	errorCount: number;
 	loading: boolean;
 };
 
@@ -17,6 +18,7 @@ const INITIAL: StopsState = {
 	road: null,
 	reason: null,
 	lastError: null,
+	errorCount: 0,
 	loading: false
 };
 
@@ -92,6 +94,7 @@ function createStopsStore() {
 				road: res.road ?? null,
 				reason: res.reason ?? null,
 				lastError: null,
+				errorCount: 0,
 				loading: false
 			});
 
@@ -104,7 +107,7 @@ function createStopsStore() {
 			inflight = null;
 			if (err instanceof DOMException && err.name === 'AbortError') return;
 			const msg = err instanceof ApiError ? err.message : 'Network error';
-			inner.update((s) => ({ ...s, lastError: msg, loading: false }));
+			inner.update((s) => ({ ...s, lastError: msg, errorCount: s.errorCount + 1, loading: false }));
 		}
 	}
 

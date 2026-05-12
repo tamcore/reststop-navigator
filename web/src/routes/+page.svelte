@@ -42,7 +42,18 @@
 <div class="section-label">Next stops</div>
 
 {#if $stopsPoller.lastError}
-	<p class="error">{$stopsPoller.lastError}</p>
+	<div class="error-panel" role="alert">
+		<div class="error-icon">⚠</div>
+		<div class="error-body">
+			<div class="error-title">Connection problem</div>
+			<p class="error-msg">{$stopsPoller.lastError}</p>
+			{#if $stopsPoller.errorCount > 1}
+				<p class="error-count">{$stopsPoller.errorCount} consecutive failures — retrying automatically…</p>
+			{:else}
+				<p class="error-count">Retrying automatically…</p>
+			{/if}
+		</div>
+	</div>
 {/if}
 
 {#if $stopsPoller.reason === 'outside-supported-area'}
@@ -280,5 +291,54 @@
 		opacity: 0;
 		animation: rise 0.36s var(--ease-spring) forwards;
 		animation-delay: calc(var(--i) * 50ms);
+	}
+
+	.error-panel {
+		display: flex;
+		gap: 0.75rem;
+		padding: 1rem 1.1rem;
+		border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+		border-radius: var(--radius-card);
+		background:
+			radial-gradient(120% 100% at 0% 0%, rgba(239, 68, 68, 0.1), transparent 60%),
+			var(--surface);
+		margin-bottom: 0.75rem;
+		animation: shake 0.4s ease-out;
+	}
+	.error-icon {
+		font-size: 1.3rem;
+		line-height: 1;
+		flex-shrink: 0;
+	}
+	.error-body {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+	.error-title {
+		font-family: var(--font-display);
+		font-weight: 700;
+		font-size: 0.78rem;
+		letter-spacing: 0.22em;
+		text-transform: uppercase;
+		color: var(--danger);
+	}
+	.error-msg {
+		margin: 0;
+		color: var(--text);
+		font-size: 0.85rem;
+		line-height: 1.4;
+	}
+	.error-count {
+		margin: 0;
+		color: var(--muted);
+		font-size: 0.78rem;
+	}
+	@keyframes shake {
+		0%, 100% { transform: translateX(0); }
+		20% { transform: translateX(-4px); }
+		40% { transform: translateX(4px); }
+		60% { transform: translateX(-2px); }
+		80% { transform: translateX(2px); }
 	}
 </style>

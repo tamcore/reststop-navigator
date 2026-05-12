@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
+import demoTrip from '$lib/data/demo-trip.json';
 
 type WatchCallback = (pos: GeolocationPosition) => void;
 type ErrorCallback = (err: GeolocationPositionError) => void;
+
+const firstPt = demoTrip[0];
 
 class FakeGeolocation {
 	watchCount = 0;
@@ -53,6 +56,7 @@ describe('geo store', () => {
 
 	beforeEach(() => {
 		vi.resetModules();
+		vi.useFakeTimers();
 		fake = new FakeGeolocation();
 		originalNav = globalThis.navigator;
 		Object.defineProperty(globalThis, 'navigator', {
@@ -63,6 +67,7 @@ describe('geo store', () => {
 	});
 
 	afterEach(() => {
+		vi.useRealTimers();
 		if (originalNav) {
 			Object.defineProperty(globalThis, 'navigator', {
 				value: originalNav,
@@ -124,17 +129,33 @@ describe('geo store', () => {
 		expect(get(geo).status).toBe('unavailable');
 	});
 
-	it('startDemo emits live state with DEMO_POSITION coords', async () => {
-		const { geo, DEMO_POSITION } = await import('./geo');
+	it('startDemo replays trip points starting with the first', async () => {
+		const { geo } = await import('./geo');
 		geo.startDemo();
+		// First point has delay_ms=0, so it fires at setTimeout(fn, 0)
+		await vi.advanceTimersByTimeAsync(0);
 		const s = get(geo);
 		expect(s.status).toBe('live');
 		if (s.status === 'live') {
-			expect(s.lat).toBe(DEMO_POSITION.lat);
-			expect(s.lon).toBe(DEMO_POSITION.lon);
-			expect(s.heading).toBe(DEMO_POSITION.heading);
-			expect(s.speed).toBe(DEMO_POSITION.speed);
-			expect(s.accuracy).toBe(DEMO_POSITION.accuracy);
+			expect(s.lat).toBe(firstPt.lat);
+			expect(s.lon).toBe(firstPt.lon);
+			expect(s.heading).toBe(firstPt.heading);
+			expect(s.speed).toBeCloseTo(firstPt.speed / 3.6, 1);
+			expect(s.accuracy).toBe(firstPt.accuracy);
+		}
+	});
+
+	it('startDemo advances to second point after its delay', async () => {
+		const { geo } = await import('./geo');
+		geo.startDemo();
+		const secondPt = demoTrip[1];
+		// Advance past first point (0ms) and second point (delay_ms)
+		await vi.advanceTimersByTimeAsync(secondPt.delay_ms + 1);
+		const s = get(geo);
+		expect(s.status).toBe('live');
+		if (s.status === 'live') {
+			expect(s.lat).toBe(secondPt.lat);
+			expect(s.lon).toBe(secondPt.lon);
 		}
 	});
 
@@ -158,11 +179,16 @@ describe('geo store', () => {
 describe('geo store without navigator.geolocation', () => {
 	beforeEach(() => {
 		vi.resetModules();
+		vi.useFakeTimers();
 		Object.defineProperty(globalThis, 'navigator', {
 			value: {},
 			configurable: true,
 			writable: true
 		});
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
 	});
 
 	it('reports unavailable', async () => {
@@ -172,12 +198,13 @@ describe('geo store without navigator.geolocation', () => {
 	});
 
 	it('startDemo still emits live state without geolocation', async () => {
-		const { geo, DEMO_POSITION } = await import('./geo');
+		const { geo } = await import('./geo');
 		geo.startDemo();
+		await vi.advanceTimersByTimeAsync(0);
 		const s = get(geo);
 		expect(s.status).toBe('live');
 		if (s.status === 'live') {
-			expect(s.lat).toBe(DEMO_POSITION.lat);
+			expect(s.lat).toBe(firstPt.lat);
 		}
 	});
 });

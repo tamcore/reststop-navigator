@@ -142,6 +142,7 @@ describe('stops store', () => {
 
 		const state = get(stopsPoller);
 		expect(state.lastError).toBe('server broke');
+		expect(state.errorCount).toBe(1);
 		expect(state.loading).toBe(false);
 
 		stopsPoller.stop();
@@ -203,14 +204,17 @@ describe('stops store', () => {
 		const { stopsPoller } = await import('./stops');
 		const { geo } = await import('./geo');
 
-		// Demo mode sets accuracy=5
 		geo.startDemo();
 		stopsPoller.start();
 		await vi.advanceTimersByTimeAsync(0);
 
 		expect(fetchSpy).toHaveBeenCalled();
 		const url = String(fetchSpy.mock.calls[0][0]);
-		expect(url).toContain('accuracy=5');
+		expect(url).toContain('accuracy=');
+		// Verify accuracy param is present and is a valid number
+		const match = url.match(/accuracy=([0-9.]+)/);
+		expect(match).not.toBeNull();
+		expect(Number(match![1])).toBeGreaterThan(0);
 
 		stopsPoller.stop();
 	});

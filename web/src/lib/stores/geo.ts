@@ -1,12 +1,14 @@
 import { writable } from 'svelte/store';
+import demoTrip from '$lib/data/demo-trip.json';
 
-export const DEMO_POSITION = {
-	lat: 50.06,
-	lon: 8.87,
-	heading: 75,
-	speed: 33,
-	accuracy: 5
-} as const;
+export type DemoTripPoint = {
+	delay_ms: number;
+	lat: number;
+	lon: number;
+	heading: number;
+	speed: number; // km/h (as sent to the API)
+	accuracy: number;
+};
 
 export type GeoState =
 	| { status: 'idle' }
@@ -26,6 +28,7 @@ export type GeoState =
 function createGeoStore() {
 	const inner = writable<GeoState>({ status: 'idle' });
 	let watchId: number | null = null;
+	let replayTimers: ReturnType<typeof setTimeout>[] = [];
 
 	function start() {
 		if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
@@ -62,6 +65,12 @@ function createGeoStore() {
 			navigator.geolocation.clearWatch(watchId);
 		}
 		watchId = null;
+		stopReplay();
+	}
+
+	function stopReplay() {
+		for (const t of replayTimers) clearTimeout(t);
+		replayTimers = [];
 	}
 
 	function startDemo() {
@@ -69,17 +78,47 @@ function createGeoStore() {
 			navigator.geolocation.clearWatch(watchId);
 		}
 		watchId = null;
-		inner.set({
-			status: 'live',
-			...DEMO_POSITION,
-			timestamp: Date.now()
-		});
+		stopReplay();
+
+		const points: DemoTripPoint[] = demoTrip as DemoTripPoint[];
+		let elapsed = 0;
+		for (let i = 0; i < points.length; i++) {
+			elapsed += points[i].delay_ms;
+			const pt = points[i];
+			const timer = setTimeout(() => {
+				inner.set({
+					status: 'live',
+					lat: pt.lat,
+					lon: pt.lon,
+					heading: pt.heading,
+					// Speed in the trip data is km/h (as logged by the API).
+					// The Geolocation API uses m/s, so convert back.
+					speed: pt.speed / 3.6,
+					accuracy: pt.accuracy,
+					timestamp: Date.now()
+				});
+			}, elapsed);
+			replayTimers.push(timer);
+		}
+
+		// After the last point, loop from the beginning.
+		const loopTimer = setTimeout(() => startDemo(), elapsed + 3000);
+		replayTimers.push(loopTimer);
 	}
 
 	return { subscribe: inner.subscribe, start, stop, startDemo };
 }
 
 export const geo = createGeoStore();
+
+/** Total duration of the demo trip in milliseconds. */
+export const DEMO_TRIP_DURATION_MS = (demoTrip as DemoTripPoint[]).reduce(
+	(sum, p) => sum + p.delay_ms,
+	0
+);
+
+/** Number of data points in the demo trip. */
+export const DEMO_TRIP_POINTS = (demoTrip as DemoTripPoint[]).length;
 
 // kmh converts a Geolocation-API speed (m/s, possibly null) to km/h, or 0.
 export function kmh(speedMS: number | null): number {

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -83,6 +84,11 @@ func (h *Stops) upcoming(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.svc.Upcoming(r.Context(), req)
 	if err != nil {
+		slog.Error("stops.Upcoming failed",
+			"error", err,
+			"lat", lat, "lon", lon,
+			"heading", heading, "speed", speed,
+		)
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
@@ -113,6 +119,7 @@ func (h *Stops) detail(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, "stop not found")
 			return
 		}
+		slog.Error("stops.Get failed", "error", err, "id", id, "lat", lat, "lon", lon)
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
