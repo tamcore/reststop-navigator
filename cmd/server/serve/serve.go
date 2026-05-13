@@ -45,6 +45,11 @@ func Run() error {
 	tiles := cache.NewTileCache(rdb, overpassClient)
 	stopsSvc := stops.NewService(tiles)
 
+	// Start periodic cache stats reporter (every 5 minutes); cancelled on shutdown.
+	statsCtx, statsCancel := context.WithCancel(context.Background())
+	defer statsCancel()
+	tiles.StartStatsReporter(statsCtx, 5*time.Minute)
+
 	srv := &http.Server{
 		Addr:              cfg.ListenAddr,
 		Handler:           api.NewRouter(stopsSvc),

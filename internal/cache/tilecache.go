@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math"
 	"sync"
 	"time"
@@ -97,11 +98,17 @@ func (c *TileCache) Get(ctx context.Context, t Tile) (overpass.Dataset, error) {
 	case err == nil:
 		var ds overpass.Dataset
 		if jsonErr := json.Unmarshal(payload, &ds); jsonErr == nil {
+			slog.Debug("tilecache: hit",
+				"tile", key,
+				"ways", len(ds.Ways),
+				"stops", len(ds.Stops),
+				"bytes", len(payload),
+			)
 			return ds, nil
 		}
-		// fall through and refetch on decode errors.
+		slog.Warn("tilecache: corrupt cache entry, refetching", "tile", key)
 	case errors.Is(err, redis.Nil):
-		// fall through to fetch.
+		slog.Info("tilecache: miss", "tile", key)
 	default:
 		return overpass.Dataset{}, fmt.Errorf("tilecache: redis get: %w", err)
 	}
@@ -122,6 +129,7 @@ func (c *TileCache) Get(ctx context.Context, t Tile) (overpass.Dataset, error) {
 
 // fetchAndCache queries Overpass for a tile and writes the result to Redis.
 func (c *TileCache) fetchAndCache(ctx context.Context, t Tile, key string) (overpass.Dataset, error) {
+	start := time.Now()
 	raw, err := c.client.Query(ctx, overpass.BBoxQuery(t.BBox()))
 	if err != nil {
 		return overpass.Dataset{}, fmt.Errorf("tilecache: overpass: %w", err)
@@ -137,7 +145,19 @@ func (c *TileCache) fetchAndCache(ctx context.Context, t Tile, key string) (over
 		ttl = c.missTTL
 	}
 	if buf, marshalErr := json.Marshal(ds); marshalErr == nil {
-		_ = c.rdb.Set(ctx, key, buf, ttl).Err()
+		if setErr := c.rdb.Set(ctx, key, buf, ttl).Err(); setErr != nil {
+			slog.Error("tilecache: redis SET failed", "tile", key, "error", setErr)
+		} else {
+			slog.Info("tilecache: cached",
+				"tile", key,
+				"ways", len(ds.Ways),
+				"stops", len(ds.Stops),
+				"amenities", len(ds.Amenities),
+				"bytes", len(buf),
+				"ttl", ttl.String(),
+				"fetch_ms", time.Since(start).Milliseconds(),
+			)
+		}
 	}
 	return ds, nil
 }
@@ -182,4 +202,52 @@ func (c *TileCache) GetMerged(ctx context.Context, pos geo.LatLng) (overpass.Dat
 
 func tileKey(t Tile) string {
 	return fmt.Sprintf("reststops:tile:%.1f:%.1f", t.South, t.West)
+}
+
+// ReportStats logs a summary of the current tile cache contents in Redis.
+func (c *TileCache) ReportStats(ctx context.Context) {
+	var cursor uint64
+	var tileCount int
+	var totalBytes int64
+
+	for {
+		keys, next, err := c.rdb.Scan(ctx, cursor, "reststops:tile:*", 100).Result()
+		if err != nil {
+			slog.Error("tilecache: stats scan failed", "error", err)
+			return
+		}
+		for _, key := range keys {
+			tileCount++
+			length, err := c.rdb.StrLen(ctx, key).Result()
+			if err == nil {
+				totalBytes += length
+			}
+		}
+		cursor = next
+		if cursor == 0 {
+			break
+		}
+	}
+
+	slog.Info("tilecache: stats",
+		"tiles", tileCount,
+		"total_bytes", totalBytes,
+	)
+}
+
+// StartStatsReporter launches a goroutine that logs cache statistics at the
+// given interval. It stops when ctx is cancelled.
+func (c *TileCache) StartStatsReporter(ctx context.Context, interval time.Duration) {
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				c.ReportStats(ctx)
+			}
+		}
+	}()
 }

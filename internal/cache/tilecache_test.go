@@ -1,9 +1,11 @@
 package cache
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -397,5 +399,156 @@ func TestGetSingleflightCoalescesConcurrentFetches(t *testing.T) {
 	// Only one Overpass call should have been made.
 	if got := atomic.LoadInt32(&fetcher.calls); got != 1 {
 		t.Fatalf("singleflight calls = %d, want 1", got)
+	}
+}
+
+// captureLogs installs a text logger that writes to a buffer and returns
+// the buffer. Caller must restore slog.Default after the test.
+func captureLogs(t *testing.T) *bytes.Buffer {
+	t.Helper()
+	var buf bytes.Buffer
+	h := slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})
+	slog.SetDefault(slog.New(h))
+	return &buf
+}
+
+func TestGetLogsCacheHit(t *testing.T) {
+	rdb := newRedis(t)
+	fetcher := &fakeFetcher{response: sampleOverpassResponse()}
+	c := NewTileCache(rdb, fetcher)
+	tile := Tile{South: 48.0, West: 11.0}
+	ctx := context.Background()
+
+	// Prime the cache.
+	if _, err := c.Get(ctx, tile); err != nil {
+		t.Fatalf("prime: %v", err)
+	}
+
+	// Capture logs for the cache hit.
+	buf := captureLogs(t)
+	defer slog.SetDefault(slog.Default())
+
+	if _, err := c.Get(ctx, tile); err != nil {
+		t.Fatalf("hit: %v", err)
+	}
+
+	logOut := buf.String()
+	if !strings.Contains(logOut, "tilecache: hit") {
+		t.Fatalf("expected 'tilecache: hit' in logs, got:\n%s", logOut)
+	}
+	if !strings.Contains(logOut, tileKey(tile)) {
+		t.Fatalf("expected tile key %q in logs, got:\n%s", tileKey(tile), logOut)
+	}
+}
+
+func TestGetLogsCacheMiss(t *testing.T) {
+	rdb := newRedis(t)
+	fetcher := &fakeFetcher{response: sampleOverpassResponse()}
+	c := NewTileCache(rdb, fetcher)
+	tile := Tile{South: 48.0, West: 11.0}
+
+	buf := captureLogs(t)
+	defer slog.SetDefault(slog.Default())
+
+	if _, err := c.Get(context.Background(), tile); err != nil {
+		t.Fatalf("miss: %v", err)
+	}
+
+	logOut := buf.String()
+	if !strings.Contains(logOut, "tilecache: miss") {
+		t.Fatalf("expected 'tilecache: miss' in logs, got:\n%s", logOut)
+	}
+	if !strings.Contains(logOut, tileKey(tile)) {
+		t.Fatalf("expected tile key %q in logs, got:\n%s", tileKey(tile), logOut)
+	}
+}
+
+func TestFetchAndCacheLogsCachedDetails(t *testing.T) {
+	rdb := newRedis(t)
+	fetcher := &fakeFetcher{response: sampleOverpassResponse()}
+	c := NewTileCache(rdb, fetcher)
+	tile := Tile{South: 48.0, West: 11.0}
+
+	buf := captureLogs(t)
+	defer slog.SetDefault(slog.Default())
+
+	if _, err := c.Get(context.Background(), tile); err != nil {
+		t.Fatalf("get: %v", err)
+	}
+
+	logOut := buf.String()
+	if !strings.Contains(logOut, "tilecache: cached") {
+		t.Fatalf("expected 'tilecache: cached' in logs, got:\n%s", logOut)
+	}
+	// Should contain data size info.
+	if !strings.Contains(logOut, "ways=") {
+		t.Fatalf("expected 'ways=' in cached log, got:\n%s", logOut)
+	}
+	if !strings.Contains(logOut, "stops=") {
+		t.Fatalf("expected 'stops=' in cached log, got:\n%s", logOut)
+	}
+	if !strings.Contains(logOut, "bytes=") {
+		t.Fatalf("expected 'bytes=' in cached log, got:\n%s", logOut)
+	}
+	if !strings.Contains(logOut, "ttl=") {
+		t.Fatalf("expected 'ttl=' in cached log, got:\n%s", logOut)
+	}
+	if !strings.Contains(logOut, "fetch_ms=") {
+		t.Fatalf("expected 'fetch_ms=' in cached log, got:\n%s", logOut)
+	}
+}
+
+func TestGetLogsCorruptCacheEntry(t *testing.T) {
+	rdb := newRedis(t)
+	fetcher := &fakeFetcher{response: sampleOverpassResponse()}
+	c := NewTileCache(rdb, fetcher)
+	tile := Tile{South: 48.0, West: 11.0}
+	ctx := context.Background()
+
+	// Write garbage to Redis so the cache decode fails.
+	if err := rdb.Set(ctx, tileKey(tile), "not-json", time.Hour).Err(); err != nil {
+		t.Fatalf("pre-seed: %v", err)
+	}
+
+	buf := captureLogs(t)
+	defer slog.SetDefault(slog.Default())
+
+	if _, err := c.Get(ctx, tile); err != nil {
+		t.Fatalf("get: %v", err)
+	}
+
+	logOut := buf.String()
+	if !strings.Contains(logOut, "corrupt") {
+		t.Fatalf("expected 'corrupt' in logs for bad cache entry, got:\n%s", logOut)
+	}
+}
+
+func TestStatsReporterLogsPeriodicStats(t *testing.T) {
+	rdb := newRedis(t)
+	fetcher := &fakeFetcher{response: sampleOverpassResponse()}
+	c := NewTileCache(rdb, fetcher)
+	tile := Tile{South: 48.0, West: 11.0}
+	ctx := context.Background()
+
+	// Prime a tile so there's something to report.
+	if _, err := c.Get(ctx, tile); err != nil {
+		t.Fatalf("prime: %v", err)
+	}
+
+	buf := captureLogs(t)
+	defer slog.SetDefault(slog.Default())
+
+	// Run a single stats report cycle.
+	c.ReportStats(ctx)
+
+	logOut := buf.String()
+	if !strings.Contains(logOut, "tilecache: stats") {
+		t.Fatalf("expected 'tilecache: stats' in logs, got:\n%s", logOut)
+	}
+	if !strings.Contains(logOut, "tiles=") {
+		t.Fatalf("expected 'tiles=' in stats log, got:\n%s", logOut)
+	}
+	if !strings.Contains(logOut, "total_bytes=") {
+		t.Fatalf("expected 'total_bytes=' in stats log, got:\n%s", logOut)
 	}
 }
