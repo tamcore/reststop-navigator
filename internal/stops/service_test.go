@@ -45,23 +45,79 @@ func straightEastA8DE() overpass.Dataset {
 			{
 				OSMType: "node", OSMID: 100, Kind: "services",
 				Pos: geo.LatLng{Lat: 48.000, Lon: 11.0075}, Name: "Aichen",
-				Amenities: overpass.AmenityFlags{Fuel: true, Food: true, Toilets: true, Open24h: true},
-				Tags:      map[string]string{"opening_hours": "24/7", "operator": "Tank & Rast"},
+				Amenities:      overpass.AmenityFlags{Fuel: true, Food: true, Toilets: true, Open24h: true},
+				Tags:           map[string]string{"opening_hours": "24/7", "operator": "Tank & Rast"},
+				HighwayRef:     "A8",
+				HighwayBearing: 90,
 			},
 			{
 				OSMType: "node", OSMID: 101, Kind: "rest_area",
 				Pos: geo.LatLng{Lat: 48.000, Lon: 11.012}, Name: "Holledau",
-				Amenities: overpass.AmenityFlags{Toilets: true},
+				Amenities:      overpass.AmenityFlags{Toilets: true},
+				HighwayRef:     "A8",
+				HighwayBearing: 90,
 			},
 			{
 				OSMType: "node", OSMID: 102, Kind: "services",
 				Pos: geo.LatLng{Lat: 48.000, Lon: 11.018}, Name: "Far",
-				Amenities: overpass.AmenityFlags{Fuel: true, Charging: true, Food: true, Toilets: true},
+				Amenities:      overpass.AmenityFlags{Fuel: true, Charging: true, Food: true, Toilets: true},
+				HighwayRef:     "A8",
+				HighwayBearing: 90,
 			},
 			{
 				OSMType: "node", OSMID: 103, Kind: "services",
 				Pos: geo.LatLng{Lat: 48.000, Lon: 11.001}, Name: "Behind",
-				Amenities: overpass.AmenityFlags{Fuel: true},
+				Amenities:      overpass.AmenityFlags{Fuel: true},
+				HighwayRef:     "A8",
+				HighwayBearing: 90,
+			},
+		},
+	}
+}
+
+// westboundA1AT has two parallel A1 carriageways: west-bound at lat=48.185 and
+// east-bound at lat=48.188. The driver is east of the stops at lon=15.79,
+// heading 270° (westbound). "St. Pölten Ost" is on the east carriageway and
+// must be filtered; "St. Pölten West" is on the west carriageway and must appear.
+func westboundA1AT() overpass.Dataset {
+	return overpass.Dataset{
+		Country: overpass.AT,
+		Version: "1717200000",
+		Ways: []geo.Way{
+			{
+				ID: "way/4001", Ref: "A1", Oneway: true,
+				Coords: []geo.LatLng{
+					{Lat: 48.185, Lon: 15.80},
+					{Lat: 48.185, Lon: 15.75},
+					{Lat: 48.185, Lon: 15.70},
+					{Lat: 48.185, Lon: 15.60},
+				},
+			},
+			{
+				ID: "way/4002", Ref: "A1", Oneway: true,
+				Coords: []geo.LatLng{
+					{Lat: 48.188, Lon: 15.60},
+					{Lat: 48.188, Lon: 15.70},
+					{Lat: 48.188, Lon: 15.80},
+				},
+			},
+		},
+		Stops: []overpass.Stop{
+			{
+				OSMType: "node", OSMID: 5001, Kind: "services",
+				Pos:            geo.LatLng{Lat: 48.185, Lon: 15.72},
+				Name:           "St. Pölten West",
+				Amenities:      overpass.AmenityFlags{Fuel: true, Food: true, Toilets: true},
+				HighwayRef:     "A1",
+				HighwayBearing: 270,
+			},
+			{
+				OSMType: "node", OSMID: 5002, Kind: "services",
+				Pos:            geo.LatLng{Lat: 48.188, Lon: 15.72},
+				Name:           "St. Pölten Ost",
+				Amenities:      overpass.AmenityFlags{Fuel: true, Food: true, Toilets: true},
+				HighwayRef:     "A1",
+				HighwayBearing: 90,
 			},
 		},
 	}
@@ -307,6 +363,69 @@ func TestUpcoming_AccuracyCappedAt250(t *testing.T) {
 	}
 	if resp.Reason != "off-highway-or-wrong-direction" {
 		t.Errorf("with 300m distance and capped accuracy, expected off-highway, got reason=%q", resp.Reason)
+	}
+}
+
+func TestUpcoming_WestboundA1_FiltersOppositeCarriageway(t *testing.T) {
+	t.Parallel()
+	svc := stops.NewService(fakeTiles{ds: westboundA1AT()})
+	resp, err := svc.Upcoming(context.Background(), stops.UpcomingRequest{
+		// Bug reproducer: westbound A1 driver, east of St. Pölten, heading 270°.
+		Pos:     geo.LatLng{Lat: 48.185, Lon: 15.79},
+		Heading: 270,
+		Speed:   108,
+		Limit:   10,
+	})
+	if err != nil {
+		t.Fatalf("Upcoming: %v", err)
+	}
+	if resp.Country != "AT" {
+		t.Errorf("country = %q, want AT", resp.Country)
+	}
+	if resp.Road == nil || resp.Road.Ref != "A1" {
+		t.Errorf("road = %+v, want A1", resp.Road)
+	}
+	for _, s := range resp.Stops {
+		if s.Name == "St. Pölten Ost" {
+			t.Errorf("east-carriageway stop appeared in westbound response: %+v", resp.Stops)
+		}
+	}
+	found := false
+	for _, s := range resp.Stops {
+		if s.Name == "St. Pölten West" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("west-carriageway stop not returned; got stops = %v", resp.Stops)
+	}
+}
+
+func TestUpcoming_DifferentHighwayStopFiltered(t *testing.T) {
+	t.Parallel()
+	ds := westboundA1AT()
+	ds.Stops = append(ds.Stops, overpass.Stop{
+		OSMType: "node", OSMID: 9001, Kind: "services",
+		Pos:            geo.LatLng{Lat: 48.185, Lon: 15.71},
+		Name:           "A3 Intruder",
+		Amenities:      overpass.AmenityFlags{Fuel: true},
+		HighwayRef:     "A3",
+		HighwayBearing: 270,
+	})
+	svc := stops.NewService(fakeTiles{ds: ds})
+	resp, err := svc.Upcoming(context.Background(), stops.UpcomingRequest{
+		Pos:     geo.LatLng{Lat: 48.185, Lon: 15.79},
+		Heading: 270,
+		Speed:   108,
+		Limit:   10,
+	})
+	if err != nil {
+		t.Fatalf("Upcoming: %v", err)
+	}
+	for _, s := range resp.Stops {
+		if s.Name == "A3 Intruder" {
+			t.Errorf("stop from different highway appeared on A1 route: %+v", resp.Stops)
+		}
 	}
 }
 

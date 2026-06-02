@@ -92,3 +92,102 @@ func TestEnrichDataset_NilSafe(t *testing.T) {
 	t.Parallel()
 	overpass.EnrichDataset(nil)
 }
+
+// snapTestDataset has two parallel A8 carriageways ~110m apart at lat=48.000
+// (east-bound) and lat=48.001 (west-bound). Stops are placed clearly on one
+// side so distance to the nearest way is unambiguous.
+func snapTestDataset() overpass.Dataset {
+	return overpass.Dataset{
+		Ways: []geo.Way{
+			{
+				ID: "way/1001", Ref: "A8", Oneway: true,
+				Coords: []geo.LatLng{
+					{Lat: 48.000, Lon: 11.000},
+					{Lat: 48.000, Lon: 11.010},
+					{Lat: 48.000, Lon: 11.020},
+				},
+			},
+			{
+				ID: "way/1002", Ref: "A8", Oneway: true,
+				Coords: []geo.LatLng{
+					{Lat: 48.001, Lon: 11.020},
+					{Lat: 48.001, Lon: 11.010},
+					{Lat: 48.001, Lon: 11.000},
+				},
+			},
+		},
+	}
+}
+
+func TestSnapStopsToMotorways_EastboundCarriageway(t *testing.T) {
+	t.Parallel()
+	ds := snapTestDataset()
+	// Stop south of the east-bound way (48.000) — clearly closer to east way.
+	ds.Stops = []overpass.Stop{
+		{OSMID: 1, Kind: "rest_area", Pos: geo.LatLng{Lat: 47.999, Lon: 11.010}},
+	}
+	overpass.EnrichDataset(&ds)
+
+	s := ds.Stops[0]
+	if s.HighwayRef != "A8" {
+		t.Errorf("HighwayRef = %q, want A8", s.HighwayRef)
+	}
+	if geo.AngleDiff(s.HighwayBearing, 90) > 10 {
+		t.Errorf("HighwayBearing = %.1f, want ≈90° (east-bound)", s.HighwayBearing)
+	}
+}
+
+func TestSnapStopsToMotorways_WestboundCarriageway(t *testing.T) {
+	t.Parallel()
+	ds := snapTestDataset()
+	// Stop north of the west-bound way (48.001) — clearly closer to west way.
+	ds.Stops = []overpass.Stop{
+		{OSMID: 2, Kind: "rest_area", Pos: geo.LatLng{Lat: 48.002, Lon: 11.010}},
+	}
+	overpass.EnrichDataset(&ds)
+
+	s := ds.Stops[0]
+	if s.HighwayRef != "A8" {
+		t.Errorf("HighwayRef = %q, want A8", s.HighwayRef)
+	}
+	if geo.AngleDiff(s.HighwayBearing, 270) > 10 {
+		t.Errorf("HighwayBearing = %.1f, want ≈270° (west-bound)", s.HighwayBearing)
+	}
+}
+
+func TestSnapStopsToMotorways_TooFarFromAnyWay(t *testing.T) {
+	t.Parallel()
+	ds := snapTestDataset()
+	// Stop far north — more than 350 m from either way.
+	ds.Stops = []overpass.Stop{
+		{OSMID: 3, Kind: "rest_area", Pos: geo.LatLng{Lat: 49.000, Lon: 11.010}},
+	}
+	overpass.EnrichDataset(&ds)
+
+	if ds.Stops[0].HighwayRef != "" {
+		t.Errorf("HighwayRef = %q, want empty (stop beyond snap radius)", ds.Stops[0].HighwayRef)
+	}
+}
+
+func TestSnapStopsToMotorways_EmptyRefWaySkipped(t *testing.T) {
+	t.Parallel()
+	ds := overpass.Dataset{
+		Ways: []geo.Way{
+			{
+				ID: "way/9999", Ref: "", Oneway: true,
+				Coords: []geo.LatLng{
+					{Lat: 48.000, Lon: 11.000},
+					{Lat: 48.000, Lon: 11.010},
+				},
+			},
+		},
+		Stops: []overpass.Stop{
+			{OSMID: 4, Kind: "rest_area", Pos: geo.LatLng{Lat: 48.000, Lon: 11.005}},
+		},
+	}
+	overpass.EnrichDataset(&ds)
+
+	if ds.Stops[0].HighwayRef != "" {
+		t.Errorf("HighwayRef = %q, want empty (way has no ref)", ds.Stops[0].HighwayRef)
+	}
+}

@@ -117,7 +117,7 @@ func TestTileBBox(t *testing.T) {
 func TestTileKeyDeterministic(t *testing.T) {
 	tile := Tile{South: 48.0, West: 11.5}
 	got := tileKey(tile)
-	want := "reststops:tile:48.0:11.5"
+	want := "reststops:tile:v2:48.0:11.5"
 	if got != want {
 		t.Fatalf("tileKey = %q, want %q", got, want)
 	}

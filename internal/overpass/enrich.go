@@ -1,6 +1,7 @@
 package overpass
 
 import (
+	"math"
 	"strings"
 
 	"github.com/tamcore/reststop-navigator/internal/geo"
@@ -30,15 +31,52 @@ func hasFuelBrand(tags map[string]string) bool {
 // one end and the restaurant at the other.
 const amenityJoinRadiusMeters = 350.0
 
+// motorwayStopSnapRadiusMeters is the maximum perpendicular distance at which a
+// stop is associated with a motorway way. 350 m spans typical Tank & Rast
+// complexes and matches the amenity-join radius above.
+const motorwayStopSnapRadiusMeters = 350.0
+
+// snapStopsToMotorways sets HighwayRef and HighwayBearing on each stop by
+// snapping it to the nearest motorway way segment in ds. Ways with an empty Ref
+// are skipped. Stops farther than motorwayStopSnapRadiusMeters from every way
+// are left with zero-valued fields (they will be dropped at request time).
+func snapStopsToMotorways(ds *Dataset) {
+	for i := range ds.Stops {
+		s := &ds.Stops[i]
+		bestDist := math.Inf(1)
+		var bestRef string
+		var bestBearing float64
+		for _, w := range ds.Ways {
+			if w.Ref == "" {
+				continue
+			}
+			for seg := 0; seg < len(w.Coords)-1; seg++ {
+				d := geo.DistancePointToSegment(s.Pos, w.Coords[seg], w.Coords[seg+1])
+				if d < bestDist {
+					bestDist = d
+					bestRef = w.Ref
+					bestBearing = geo.Bearing(w.Coords[seg], w.Coords[seg+1])
+				}
+			}
+		}
+		if bestDist <= motorwayStopSnapRadiusMeters && bestRef != "" {
+			s.HighwayRef = bestRef
+			s.HighwayBearing = bestBearing
+		}
+	}
+}
+
 // EnrichDataset mutates ds.Stops in place to populate the AmenityFlags field
 // based on (a) the stop's own tags and kind, and (b) amenity nodes within
-// amenityJoinRadiusMeters of the stop.
+// amenityJoinRadiusMeters of the stop. It also snaps each stop to its nearest
+// motorway way, setting HighwayRef and HighwayBearing.
 //
 // nil input is a safe no-op.
 func EnrichDataset(ds *Dataset) {
 	if ds == nil {
 		return
 	}
+	snapStopsToMotorways(ds)
 	for i := range ds.Stops {
 		s := &ds.Stops[i]
 

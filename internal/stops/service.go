@@ -5,6 +5,7 @@ package stops
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math"
 
 	"github.com/tamcore/reststop-navigator/internal/geo"
@@ -139,8 +140,28 @@ func (s *Service) Upcoming(ctx context.Context, req UpcomingRequest) (UpcomingRe
 		}, nil
 	}
 
-	soNw := make([]geo.StopOnWay, len(ds.Stops))
-	for i, st := range ds.Stops {
+	// Filter to the matched carriageway: same highway ref, same direction (≤90°).
+	matchedBearing := matchedSegmentBearing(match)
+	var droppedHighway, droppedDirection, droppedUnsnapped int
+	carriageStops := make([]overpass.Stop, 0, len(ds.Stops))
+	for _, st := range ds.Stops {
+		if st.HighwayRef == "" {
+			droppedUnsnapped++
+			continue
+		}
+		if st.HighwayRef != match.Way.Ref {
+			droppedHighway++
+			continue
+		}
+		if geo.AngleDiff(st.HighwayBearing, matchedBearing) > 90 {
+			droppedDirection++
+			continue
+		}
+		carriageStops = append(carriageStops, st)
+	}
+
+	soNw := make([]geo.StopOnWay, len(carriageStops))
+	for i, st := range carriageStops {
 		soNw[i] = geo.StopOnWay{
 			StopID: stopID(st),
 			Pos:    st.Pos,
@@ -148,8 +169,8 @@ func (s *Service) Upcoming(ctx context.Context, req UpcomingRequest) (UpcomingRe
 	}
 	ahead := geo.FilterAhead(match, req.Pos, soNw)
 
-	stopByID := make(map[string]overpass.Stop, len(ds.Stops))
-	for _, st := range ds.Stops {
+	stopByID := make(map[string]overpass.Stop, len(carriageStops))
+	for _, st := range carriageStops {
 		stopByID[stopID(st)] = st
 	}
 
@@ -201,6 +222,15 @@ func (s *Service) Upcoming(ctx context.Context, req UpcomingRequest) (UpcomingRe
 			break
 		}
 	}
+	slog.InfoContext(ctx, "stops.upcoming",
+		"road_ref", out.Road.Ref,
+		"road_dir", out.Road.Direction,
+		"returned", len(out.Stops),
+		"dropped_wrong_highway", droppedHighway,
+		"dropped_wrong_direction", droppedDirection,
+		"dropped_unsnapped", droppedUnsnapped,
+		"stop_ids", stopIDsOf(out.Stops),
+	)
 	return out, nil
 }
 
@@ -305,15 +335,33 @@ func filtersMatch(f Filters, a overpass.AmenityFlags) bool {
 	return true
 }
 
-func directionFromMatch(m geo.Match) string {
+// matchedSegmentBearing returns the bearing of the matched way segment in the
+// driver's direction of travel (0-360°, 0=N). Returns 0 when the match is
+// incomplete; callers use it with geo.AngleDiff so the zero fallback is safe.
+func matchedSegmentBearing(m geo.Match) float64 {
 	if m.Way == nil || len(m.Way.Coords) < m.SegmentIndex+2 {
-		return ""
+		return 0
 	}
 	a, b := m.Way.Coords[m.SegmentIndex], m.Way.Coords[m.SegmentIndex+1]
 	if !m.Forward {
 		a, b = b, a
 	}
-	return bearingToCardinal(geo.Bearing(a, b))
+	return geo.Bearing(a, b)
+}
+
+func directionFromMatch(m geo.Match) string {
+	if m.Way == nil || len(m.Way.Coords) < m.SegmentIndex+2 {
+		return ""
+	}
+	return bearingToCardinal(matchedSegmentBearing(m))
+}
+
+func stopIDsOf(stops []StopInfo) []string {
+	ids := make([]string, len(stops))
+	for i, s := range stops {
+		ids[i] = s.ID
+	}
+	return ids
 }
 
 // bearingToCardinal converts a 0-360 bearing into one of 8 compass labels.

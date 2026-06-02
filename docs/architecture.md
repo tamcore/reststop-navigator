@@ -48,13 +48,15 @@ This file explains how that works. Pair it with [development.md](development.md)
    - For each segment: `distancePointToSegment ≤ maxDist` AND `angleDiff(heading, segmentBearing) ≤ 60°` → candidate.
    - `maxDist` is accuracy-aware: `max(80, gpsAccuracy)` capped at 250 m (default 80 m when accuracy not provided). This widens the match radius for early imprecise GPS fixes, tightening as accuracy improves.
    - Pick min-distance candidate. None → `200 { reason: "off-highway-or-wrong-direction" }`.
-6. **Stops ahead** (`internal/geo/ahead.go`):
-   - Haversine distance from user to each stop on the matched way.
-   - Heading-vector dot product filters out stops behind the driver.
-   - We deliberately do **not** project onto the way's polyline — stops often live on a different OSM way than the carriageway, and projection clamps to endpoints in that case (this regression is in the git history).
-7. **Filter** — drop stops that fail any selected amenity flag (`fuel`, `charging`, `food`, `toilets`, `open24h`, `dog`).
-8. **Rank** — by road-distance ascending. Take `limit`.
-9. **Respond** — JSON, country + road shield + ranked stops + version + ttl.
+6. **Carriageway filter** (`internal/stops/service.go`, `internal/overpass/enrich.go`):
+   - At hydrate time, `EnrichDataset` snaps each stop to the nearest motorway way within 350 m by perpendicular distance, storing `HighwayRef` (e.g. `"A1"`) and `HighwayBearing` (coord-order bearing of the best segment, 0-360°) on the stop.
+   - At request time, before the ahead filter, stops are dropped if: (a) `HighwayRef` is empty (not snapped), (b) `HighwayRef ≠ match.Way.Ref` (different highway), or (c) `AngleDiff(stop.HighwayBearing, matchedBearing) > 90°` (opposite carriageway). This prevents stops on the eastbound carriageway from appearing for a westbound driver.
+   - We deliberately do **not** project onto the way's polyline — stops often live on a different OSM way than the carriageway, and projection clamps to endpoints in that case (this regression is in the git history). The geometric snap operates at hydrate time, not per-request.
+7. **Stops ahead** (`internal/geo/ahead.go`):
+   - Heading-vector dot product filters out stops behind the driver (already on the correct carriageway after step 6).
+8. **Filter** — drop stops that fail any selected amenity flag (`fuel`, `charging`, `food`, `toilets`, `open24h`, `dog`).
+9. **Rank** — by road-distance ascending. Take `limit`.
+10. **Respond** — JSON, country + road shield + ranked stops + version + ttl.
 
 ## Why no Postgres?
 

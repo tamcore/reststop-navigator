@@ -201,7 +201,7 @@ func (c *TileCache) GetMerged(ctx context.Context, pos geo.LatLng) (overpass.Dat
 }
 
 func tileKey(t Tile) string {
-	return fmt.Sprintf("reststops:tile:%.1f:%.1f", t.South, t.West)
+	return fmt.Sprintf("reststops:tile:v2:%.1f:%.1f", t.South, t.West)
 }
 
 // ReportStats logs a summary of the current tile cache contents in Redis.

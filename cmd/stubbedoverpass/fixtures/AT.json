@@ -1,1 +1,88 @@
-{ "version": 0.6, "generator": "stubbed-overpass", "elements": [] }
+{
+	"version": 0.6,
+	"generator": "stubbed-overpass",
+	"elements": [
+		{
+			"type": "way",
+			"id": 4001,
+			"tags": { "highway": "motorway", "oneway": "yes", "ref": "A1", "name": "West Autobahn westbound" },
+			"geometry": [
+				{ "lat": 48.185, "lon": 15.800 },
+				{ "lat": 48.185, "lon": 15.770 },
+				{ "lat": 48.185, "lon": 15.740 },
+				{ "lat": 48.185, "lon": 15.710 },
+				{ "lat": 48.185, "lon": 15.680 },
+				{ "lat": 48.185, "lon": 15.650 },
+				{ "lat": 48.185, "lon": 15.620 },
+				{ "lat": 48.185, "lon": 15.590 }
+			]
+		},
+		{
+			"type": "way",
+			"id": 4002,
+			"tags": { "highway": "motorway", "oneway": "yes", "ref": "A1", "name": "West Autobahn eastbound" },
+			"geometry": [
+				{ "lat": 48.188, "lon": 15.590 },
+				{ "lat": 48.188, "lon": 15.620 },
+				{ "lat": 48.188, "lon": 15.650 },
+				{ "lat": 48.188, "lon": 15.680 },
+				{ "lat": 48.188, "lon": 15.710 },
+				{ "lat": 48.188, "lon": 15.740 },
+				{ "lat": 48.188, "lon": 15.770 },
+				{ "lat": 48.188, "lon": 15.800 }
+			]
+		},
+		{
+			"type": "node",
+			"id": 5001,
+			"lat": 48.185,
+			"lon": 15.720,
+			"tags": {
+				"highway": "services",
+				"name": "Raststation St. Pölten West",
+				"operator": "Tank & Rast",
+				"opening_hours": "24/7"
+			}
+		},
+		{
+			"type": "node",
+			"id": 5002,
+			"lat": 48.188,
+			"lon": 15.720,
+			"tags": {
+				"highway": "services",
+				"name": "Raststation St. Pölten Ost",
+				"operator": "Tank & Rast",
+				"opening_hours": "24/7"
+			}
+		},
+		{
+			"type": "node",
+			"id": 6001,
+			"lat": 48.185,
+			"lon": 15.722,
+			"tags": { "amenity": "fuel", "brand": "OMV" }
+		},
+		{
+			"type": "node",
+			"id": 6002,
+			"lat": 48.185,
+			"lon": 15.718,
+			"tags": { "amenity": "restaurant", "name": "Autobahn Restaurant" }
+		},
+		{
+			"type": "node",
+			"id": 6003,
+			"lat": 48.188,
+			"lon": 15.722,
+			"tags": { "amenity": "fuel", "brand": "OMV" }
+		},
+		{
+			"type": "node",
+			"id": 6004,
+			"lat": 48.188,
+			"lon": 15.718,
+			"tags": { "amenity": "restaurant", "name": "Autobahn Restaurant Ost" }
+		}
+	]
+}

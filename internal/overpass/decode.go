@@ -28,6 +28,12 @@ type Stop struct {
 	Name      string            `json:"name,omitempty"`
 	Tags      map[string]string `json:"tags,omitempty"`
 	Amenities AmenityFlags      `json:"amenities"`
+	// Set by EnrichDataset: the nearest motorway way's ref (e.g. "A1") and
+	// the bearing at the snap point in coord order (= direction of travel for
+	// oneway=yes ways). Empty HighwayRef means no motorway was within snap
+	// radius; such stops are dropped by the carriageway filter in stops.Service.
+	HighwayRef     string  `json:"highway_ref,omitempty"`
+	HighwayBearing float64 `json:"highway_bearing,omitempty"` // 0-360°, 0=N
 }
 
 // AmenityNode is a parsed OSM amenity element (fuel, charging_station, …).
