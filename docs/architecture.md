@@ -80,6 +80,7 @@ Single-carriageway segments (some rural SK/CZ, AT B-roads) carry both directions
 - **Detail map:** Leaflet 1.9, OSM tiles, dynamic import for code-splitting. The stop marker is an inline-SVG `divIcon` (no asset dependency — Vite-bundled Leaflet can't resolve `marker-icon.png`).
 - **PWA shell:** `manifest.webmanifest` + `display: standalone`. API responses are network-first; last response shown stale-with-banner offline.
 - **Deep links:** Google Maps (waypoint-add when a route is active), Apple Maps (open destination), Waze (replaces active route — labelled).
+- **Demo mode:** `geo.ts` discovers pre-trimmed JSON tracks via `import.meta.glob('$lib/data/tracks/*.json')` at build time and rotates through them round-robin (localStorage counter); falls back to the embedded A3 synthetic track when none are present (CI / production).
 
 ## Design language
 

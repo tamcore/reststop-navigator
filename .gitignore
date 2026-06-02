@@ -61,6 +61,9 @@ go.work.sum
 testdata/gpx/*.gpx
 !testdata/gpx/synthetic-*.gpx
 
+# Demo track JSON files (derived from personal GPX; gitignored alongside source)
+web/src/lib/data/tracks/*.json
+
 # Agent-private notes (deployment env vars, FQDNs, kube-context names) — never commit
 AGENTS.md.local
 web/coverage/

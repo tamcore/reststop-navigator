@@ -176,6 +176,36 @@ describe('geo store', () => {
 	});
 });
 
+describe('geo store round-robin demo tracks', () => {
+	beforeEach(() => {
+		vi.resetModules();
+		vi.useFakeTimers();
+		Object.defineProperty(globalThis, 'navigator', {
+			value: {},
+			configurable: true,
+			writable: true
+		});
+		localStorage.removeItem('reststop:demo-track-index');
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	it('uses fallback A3 when no glob tracks exist', async () => {
+		const { geo, demoTrackInfo } = await import('./geo');
+		geo.startDemo();
+		await vi.advanceTimersByTimeAsync(0);
+		const info = get(demoTrackInfo);
+		expect(info.label).toBe('A3');
+		const s = get(geo);
+		expect(s.status).toBe('live');
+		if (s.status === 'live') {
+			expect(s.lat).toBe(firstPt.lat);
+		}
+	});
+});
+
 describe('geo store without navigator.geolocation', () => {
 	beforeEach(() => {
 		vi.resetModules();

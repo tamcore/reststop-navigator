@@ -11,10 +11,8 @@ package main
 
 import (
 	"encoding/json"
-	"encoding/xml"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"math"
 	"net/http"
@@ -24,26 +22,8 @@ import (
 	"time"
 
 	"github.com/tamcore/reststop-navigator/internal/geo"
+	"github.com/tamcore/reststop-navigator/internal/gpx"
 )
-
-type gpxFile struct {
-	XMLName xml.Name `xml:"gpx"`
-	Tracks  []track  `xml:"trk"`
-}
-
-type track struct {
-	Segments []trackSegment `xml:"trkseg"`
-}
-
-type trackSegment struct {
-	Points []trackPoint `xml:"trkpt"`
-}
-
-type trackPoint struct {
-	Lat  float64   `xml:"lat,attr"`
-	Lon  float64   `xml:"lon,attr"`
-	Time time.Time `xml:"time"`
-}
 
 // upcomingResponse mirrors the public API just enough for the replay summary.
 type upcomingResponse struct {
@@ -70,10 +50,16 @@ func main() {
 	if *gpxPath == "" {
 		log.Fatal("missing -gpx (or RESTSTOP_GPX_FIXTURE)")
 	}
-	pts, err := loadGPX(*gpxPath)
+	f, err := os.Open(*gpxPath)
+	if err != nil {
+		log.Fatalf("open gpx: %v", err)
+	}
+	track, err := gpx.Parse(f)
+	_ = f.Close()
 	if err != nil {
 		log.Fatalf("load gpx: %v", err)
 	}
+	pts := track.Points
 	if len(pts) < 2 {
 		log.Fatalf("need at least 2 trkpts, got %d", len(pts))
 	}
@@ -92,29 +78,6 @@ func main() {
 		fmt.Printf("t=%s lat=%.5f lon=%.5f hdg=%.0f spd=%.0f → %s\n",
 			cur.Time.Format(time.RFC3339), cur.Lat, cur.Lon, heading, speedKMH, summary)
 	}
-}
-
-func loadGPX(path string) ([]trackPoint, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = f.Close() }()
-	raw, err := io.ReadAll(f)
-	if err != nil {
-		return nil, err
-	}
-	var doc gpxFile
-	if err := xml.Unmarshal(raw, &doc); err != nil {
-		return nil, fmt.Errorf("parse gpx: %w", err)
-	}
-	var pts []trackPoint
-	for _, t := range doc.Tracks {
-		for _, s := range t.Segments {
-			pts = append(pts, s.Points...)
-		}
-	}
-	return pts, nil
 }
 
 func callAPI(c *http.Client, target string, lat, lon, heading, speed float64) string {

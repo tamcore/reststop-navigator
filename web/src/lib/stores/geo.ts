@@ -10,6 +10,41 @@ export type DemoTripPoint = {
 	accuracy: number;
 };
 
+type DemoTrack = {
+	id: string;
+	label: string;
+	duration_ms: number;
+	points: DemoTripPoint[];
+};
+
+const _trackModules = import.meta.glob<{ default: DemoTrack }>('$lib/data/tracks/*.json', {
+	eager: true
+});
+// In Vitest, eagerly-loaded JSON tracks interfere with fake timers and produce
+// unpredictable first-point speeds. Force the fallback so all unit tests use A3.
+const _tracks: DemoTrack[] = import.meta.env.VITEST
+	? []
+	: Object.entries(_trackModules)
+			.sort(([a], [b]) => a.localeCompare(b))
+			.map(([, m]) => m.default)
+			.filter((t): t is DemoTrack => t != null);
+
+const _fallback: DemoTrack = {
+	id: 'embedded-a3',
+	label: 'A3',
+	duration_ms: (demoTrip as DemoTripPoint[]).reduce((s, p) => s + p.delay_ms, 0),
+	points: demoTrip as DemoTripPoint[]
+};
+
+export type DemoTrackInfo = { label: string; points: number; durationMs: number };
+
+const _demoInfo = writable<DemoTrackInfo>({
+	label: _fallback.label,
+	points: _fallback.points.length,
+	durationMs: _fallback.duration_ms
+});
+export const demoTrackInfo = { subscribe: _demoInfo.subscribe };
+
 export type GeoState =
 	| { status: 'idle' }
 	| { status: 'unavailable' }
@@ -73,6 +108,12 @@ function createGeoStore() {
 		replayTimers = [];
 	}
 
+	let _trackIdx = Number(
+		typeof localStorage !== 'undefined'
+			? (localStorage.getItem('reststop:demo-track-index') ?? 0)
+			: 0
+	) || 0;
+
 	function startDemo() {
 		if (watchId !== null && typeof navigator !== 'undefined' && 'geolocation' in navigator) {
 			navigator.geolocation.clearWatch(watchId);
@@ -80,7 +121,10 @@ function createGeoStore() {
 		watchId = null;
 		stopReplay();
 
-		const points: DemoTripPoint[] = demoTrip as DemoTripPoint[];
+		const active = _tracks.length > 0 ? _tracks[_trackIdx % _tracks.length] : _fallback;
+		_demoInfo.set({ label: active.label, points: active.points.length, durationMs: active.duration_ms });
+
+		const points = active.points;
 		let elapsed = 0;
 		for (let i = 0; i < points.length; i++) {
 			elapsed += points[i].delay_ms;
@@ -101,8 +145,16 @@ function createGeoStore() {
 			replayTimers.push(timer);
 		}
 
-		// After the last point, loop from the beginning.
-		const loopTimer = setTimeout(() => startDemo(), elapsed + 3000);
+		// After the last point, advance to next track and loop.
+		const loopTimer = setTimeout(() => {
+			if (_tracks.length > 0) {
+				_trackIdx = (_trackIdx + 1) % _tracks.length;
+				if (typeof localStorage !== 'undefined') {
+					localStorage.setItem('reststop:demo-track-index', String(_trackIdx));
+				}
+			}
+			startDemo();
+		}, elapsed + 3000);
 		replayTimers.push(loopTimer);
 	}
 
@@ -111,14 +163,6 @@ function createGeoStore() {
 
 export const geo = createGeoStore();
 
-/** Total duration of the demo trip in milliseconds. */
-export const DEMO_TRIP_DURATION_MS = (demoTrip as DemoTripPoint[]).reduce(
-	(sum, p) => sum + p.delay_ms,
-	0
-);
-
-/** Number of data points in the demo trip. */
-export const DEMO_TRIP_POINTS = (demoTrip as DemoTripPoint[]).length;
 
 // kmh converts a Geolocation-API speed (m/s, possibly null) to km/h, or 0.
 export function kmh(speedMS: number | null): number {

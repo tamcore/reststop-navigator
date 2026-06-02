@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { demo } from '$lib/stores/demo';
-	import { DEMO_TRIP_DURATION_MS, DEMO_TRIP_POINTS } from '$lib/stores/geo';
+	import { demoTrackInfo } from '$lib/stores/geo';
 
-	const durationSec = Math.round(DEMO_TRIP_DURATION_MS / 1000);
-	const durationLabel =
+	$: durationSec = Math.round($demoTrackInfo.durationMs / 1000);
+	$: durationLabel =
 		durationSec >= 60
 			? `${Math.floor(durationSec / 60)}m${durationSec % 60 ? ` ${durationSec % 60}s` : ''}`
 			: `${durationSec}s`;
@@ -13,7 +13,7 @@
 	<div class="demo-banner" role="status" aria-live="polite">
 		<span class="demo-label">DEMO MODE</span>
 		<span class="demo-sep">—</span>
-		<span class="demo-desc">A3 replay · {DEMO_TRIP_POINTS} pts · {durationLabel} loop</span>
+		<span class="demo-desc">{$demoTrackInfo.label} replay · {$demoTrackInfo.points} pts · {durationLabel} loop</span>
 		<button type="button" class="demo-exit" onclick={() => demo.disable()}>exit</button>
 	</div>
 {/if}

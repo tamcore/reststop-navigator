@@ -57,6 +57,9 @@ test: ## Run all tests with race detector and coverage
 coverage: test ## Print coverage by func and total
 	@go tool cover -func=coverage.out
 
+demo-tracks: ## Convert ~/Downloads/route-*.gpx → web/src/lib/data/tracks/*.json (gitignored)
+	go run ./cmd/gpx2demo -src ~/Downloads -out web/src/lib/data/tracks
+
 clean: ## Remove build artifacts
 	rm -rf bin/ coverage.out coverage.html dist/
 

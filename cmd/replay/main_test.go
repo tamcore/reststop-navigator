@@ -6,13 +6,21 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/tamcore/reststop-navigator/internal/gpx"
 )
 
 func TestLoadGPX_Synthetic(t *testing.T) {
-	pts, err := loadGPX("../../testdata/gpx/synthetic-de-a8.gpx")
+	f, err := os.Open("../../testdata/gpx/synthetic-de-a8.gpx")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() { _ = f.Close() }()
+	track, err := gpx.Parse(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pts := track.Points
 	if len(pts) != 11 {
 		t.Fatalf("expected 11 trkpts, got %d", len(pts))
 	}
@@ -62,12 +70,17 @@ func TestReplayAgainstUserGPX(t *testing.T) {
 	if path == "" {
 		t.Skip("RESTSTOP_GPX_FIXTURE not set; skipping personal-data replay")
 	}
-	pts, err := loadGPX(path)
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatalf("open %q: %v", path, err)
+	}
+	defer func() { _ = f.Close() }()
+	track, err := gpx.Parse(f)
 	if err != nil {
 		t.Fatalf("load %q: %v", path, err)
 	}
-	if len(pts) < 2 {
-		t.Fatalf("need at least 2 trkpts in user fixture, got %d", len(pts))
+	if len(track.Points) < 2 {
+		t.Fatalf("need at least 2 trkpts in user fixture, got %d", len(track.Points))
 	}
-	t.Logf("user GPX %s: %d trkpts", path, len(pts))
+	t.Logf("user GPX %s: %d trkpts", path, len(track.Points))
 }

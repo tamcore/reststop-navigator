@@ -85,6 +85,20 @@ RESTSTOP_GPX_FIXTURE=~/Downloads/some-route.gpx \
 
 `*.gpx` is gitignored — personal data must never be committed.
 
+## Demo mode with real GPX tracks
+
+The in-browser demo mode can cycle through multiple real-route replays instead of the embedded synthetic A3 track. The source GPX files stay gitignored; only the derived JSON (first/last 15 km stripped) lands in `web/src/lib/data/tracks/`, which is also gitignored so personal routes never leave the machine.
+
+```sh
+# One-shot conversion: reads route-*.gpx from ~/Downloads, writes trimmed JSON
+make demo-tracks
+# Then start the dev server and toggle demo mode in the UI — the badge cycles
+# through all converted tracks on each loop.
+ls -la web/src/lib/data/tracks/   # should list one JSON file per qualifying route
+```
+
+`make demo-tracks` skips any GPX shorter than 30 km total. CI and production builds have no track JSON files and fall back to the embedded A3 replay automatically.
+
 ## Common operations
 
 ```sh
