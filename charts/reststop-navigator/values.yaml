@@ -16,6 +16,23 @@ resources:
     cpu: 500m
     memory: 512Mi
 
+# Pod-level security context for the app. The image runs a static Go binary,
+# so nonroot + read-only rootfs work out of the box.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+# Container-level security context for the app.
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
 service:
   type: ClusterIP
   port: 8080
@@ -51,6 +68,20 @@ env:
 redis:
   enabled: true
   image: redis:8-alpine
+  # uid/gid of the redis user in the official alpine image.
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 999
+    runAsGroup: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
   resources:
     requests:
       cpu: 50m
