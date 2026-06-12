@@ -9,10 +9,12 @@ spec:
   selector:
     matchLabels:
       {{- include "reststop-navigator.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: app
   template:
     metadata:
       labels:
         {{- include "reststop-navigator.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: app
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -73,3 +75,4 @@ spec:
           labelSelector:
             matchLabels:
               {{- include "reststop-navigator.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: app
