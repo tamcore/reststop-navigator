@@ -83,7 +83,7 @@ dev-deploy-k8s: ## Build dev image, push to IMAGE_REGISTRY, deploy to K8s namesp
 	kubectl $(KUBECTL_CTX) get namespace $(DEPLOY_NS) >/dev/null 2>&1 || kubectl $(KUBECTL_CTX) create namespace $(DEPLOY_NS); \
 	echo ""; \
 	echo "Deploying to namespace $(DEPLOY_NS)..."; \
-	kubectl $(KUBECTL_CTX) -n $(DEPLOY_NS) delete deploy/reststop-navigator
+	kubectl $(KUBECTL_CTX) -n $(DEPLOY_NS) delete deploy/reststop-navigator --ignore-not-found; \
 	helm template reststop-navigator ./charts/reststop-navigator \
 		--namespace $(DEPLOY_NS) \
 		--set image.repository="$(IMAGE_REGISTRY)/$(IMAGE_NAME)" \
