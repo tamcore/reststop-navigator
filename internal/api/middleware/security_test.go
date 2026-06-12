@@ -23,7 +23,7 @@ func TestSecurityHeaders_AppliesAll(t *testing.T) {
 	want := map[string]string{
 		"X-Content-Type-Options":  "nosniff",
 		"X-Frame-Options":         "DENY",
-		"Referrer-Policy":         "no-referrer",
+		"Referrer-Policy":         "strict-origin-when-cross-origin",
 		"Permissions-Policy":      "geolocation=(self)",
 		"Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.tile.openstreetmap.org https://tile.openstreetmap.org; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self'; manifest-src 'self'",
 	}
