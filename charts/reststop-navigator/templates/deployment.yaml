@@ -51,18 +51,25 @@ spec:
             - name: {{ $k }}
               value: {{ $v | quote }}
             {{- end }}
+          # Both probes use the shallow /api/healthz on purpose: the app
+          # degrades gracefully without Redis, so gating readiness on Redis
+          # would take the whole service down whenever Redis restarts.
           readinessProbe:
             httpGet:
               path: /api/healthz
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
           livenessProbe:
             httpGet:
               path: /api/healthz
               port: http
             initialDelaySeconds: 15
             periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 3
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}

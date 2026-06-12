@@ -92,6 +92,11 @@ Source of truth for the released chart. Defaults are intentionally empty for clu
 | `ingress.certManagerIssuer` | `letsencrypt-prod` | cert-manager wires up TLS. |
 | `redis.enabled` | `true` | In-chart single-replica Redis, no persistence. |
 | `replicaCount` | `2` | PodDisruptionBudget keeps `minAvailable: 1`. |
+| `networkPolicy.enabled` | `true` | Restricts Redis ingress to the app pods (needs a NetworkPolicy-enforcing CNI). |
+| `podSecurityContext` / `securityContext` | nonroot, read-only rootfs, no caps | App pod/container hardening; override per key if needed. |
+| `redis.podSecurityContext` / `redis.securityContext` | redis uid/gid, read-only rootfs | Redis hardening; `fsGroup` keeps the `/data` emptyDir writable. |
+
+Since chart `0.0.2` all app-side selectors (Deployment, Service, PDB, topology spread) include `app.kubernetes.io/component: app`, so they no longer match the in-chart Redis pods. The Deployment selector change is breaking for in-place upgrades from earlier releases: delete the Deployments and let the controller recreate them.
 
 Anything cluster-private (FQDNs, registry hosts) **must not** be defaulted in the chart — the privacy boundary in [AGENTS.md](../AGENTS.md) treats that as a release-blocker. Pass at deploy time via `--set` or a per-cluster values file.
 
