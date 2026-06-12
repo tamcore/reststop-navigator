@@ -110,6 +110,18 @@ describe('getClientId', () => {
 		localStorage.setItem('reststop:client-id', '11111111-2222-4333-8444-555555555555');
 		expect(getClientId()).toBe('11111111-2222-4333-8444-555555555555');
 	});
+
+	it('falls back to getRandomValues when crypto.randomUUID is unavailable (insecure context)', () => {
+		const original = crypto.randomUUID;
+		// @ts-expect-error simulate insecure context where randomUUID is undefined
+		crypto.randomUUID = undefined;
+		try {
+			const id = getClientId();
+			expect(id).toMatch(UUID_RE);
+		} finally {
+			crypto.randomUUID = original;
+		}
+	});
 });
 
 describe('fetchUpcoming client id header', () => {
