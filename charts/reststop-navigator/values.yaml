@@ -92,6 +92,11 @@ redis:
 
 externalRedisURL: ""
 
+# Restrict Redis ingress to the app pods. Only rendered when the in-chart
+# Redis is enabled; requires a CNI that enforces NetworkPolicy.
+networkPolicy:
+  enabled: true
+
 podDisruptionBudget:
   enabled: true
   minAvailable: 1
