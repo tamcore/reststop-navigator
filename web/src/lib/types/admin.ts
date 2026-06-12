@@ -37,7 +37,8 @@ export type AdminTileStop = {
 	osm_type: string;
 	osm_id: number;
 	kind: string;
-	pos: { lat: number; lon: number };
+	// geo.LatLng has no json tags, so fields serialize capitalized.
+	pos: { Lat: number; Lon: number };
 	name?: string;
 	amenities: {
 		fuel: boolean;
