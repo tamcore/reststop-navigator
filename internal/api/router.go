@@ -20,6 +20,7 @@ import (
 func NewRouter(stopsSvc handlers.StopsService) http.Handler {
 	r := chi.NewRouter()
 	r.Use(chimw.RequestID)
+	r.Use(middleware.RealIP)
 	r.Use(middleware.AccessLog)
 	r.Use(chimw.Recoverer)
 	r.Use(middleware.SecurityHeaders)
