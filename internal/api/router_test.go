@@ -1,6 +1,7 @@
 package api_test
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -9,6 +10,10 @@ import (
 	"testing/fstest"
 
 	"github.com/tamcore/reststop-navigator/internal/api"
+	"github.com/tamcore/reststop-navigator/internal/api/handlers"
+	"github.com/tamcore/reststop-navigator/internal/cache"
+	"github.com/tamcore/reststop-navigator/internal/overpass"
+	"github.com/tamcore/reststop-navigator/internal/presence"
 	"github.com/tamcore/reststop-navigator/web"
 )
 
@@ -61,6 +66,71 @@ func TestUnknownRouteReturns404(t *testing.T) {
 
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404", resp.StatusCode)
+	}
+}
+
+type stubPresence struct{}
+
+func (stubPresence) List(_ context.Context) ([]presence.Client, error) {
+	return []presence.Client{}, nil
+}
+
+type stubTiles struct{}
+
+func (stubTiles) Snapshot(_ context.Context) ([]cache.TileInfo, error) {
+	return []cache.TileInfo{}, nil
+}
+
+func (stubTiles) GetCached(_ context.Context, _ cache.Tile) (overpass.Dataset, bool, error) {
+	return overpass.Dataset{}, false, nil
+}
+
+func (stubTiles) Stats() cache.CacheStats { return cache.CacheStats{} }
+
+func TestAdminRoutesNotMountedWithoutPassword(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(api.NewRouter(nil))
+	t.Cleanup(srv.Close)
+
+	resp, err := http.Get(srv.URL + "/api/admin/stats")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = resp.Body.Close() })
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404 (admin disabled)", resp.StatusCode)
+	}
+}
+
+func TestAdminRoutesRequireAuth(t *testing.T) {
+	t.Parallel()
+
+	admin := handlers.NewAdmin(stubPresence{}, stubTiles{}, nil)
+	srv := httptest.NewServer(api.NewRouter(nil, api.WithAdmin("s3cret", admin)))
+	t.Cleanup(srv.Close)
+
+	resp, err := http.Get(srv.URL + "/api/admin/stats")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = resp.Body.Close() })
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", resp.StatusCode)
+	}
+
+	req, err := http.NewRequest(http.MethodGet, srv.URL+"/api/admin/stats", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.SetBasicAuth("admin", "s3cret")
+	resp2, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = resp2.Body.Close() })
+	if resp2.StatusCode != http.StatusOK {
+		t.Fatalf("authed status = %d, want 200", resp2.StatusCode)
 	}
 }
 
