@@ -15,9 +15,11 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/tamcore/reststop-navigator/internal/api"
+	"github.com/tamcore/reststop-navigator/internal/api/handlers"
 	"github.com/tamcore/reststop-navigator/internal/cache"
 	"github.com/tamcore/reststop-navigator/internal/config"
 	"github.com/tamcore/reststop-navigator/internal/overpass"
+	"github.com/tamcore/reststop-navigator/internal/presence"
 	"github.com/tamcore/reststop-navigator/internal/stops"
 )
 
@@ -44,6 +46,13 @@ func Run() error {
 	overpassClient := overpass.NewClient(cfg.OverpassEndpoints)
 	tiles := cache.NewTileCache(rdb, overpassClient)
 	stopsSvc := stops.NewService(tiles)
+	tracker := presence.NewTracker(rdb)
+
+	routerOpts := []api.RouterOption{api.WithPresenceRecorder(tracker)}
+	if cfg.AdminPassword != "" {
+		routerOpts = append(routerOpts, api.WithAdmin(cfg.AdminPassword, handlers.NewAdmin(tracker, tiles, rdb)))
+		slog.Info("admin api enabled")
+	}
 
 	// Start periodic cache stats reporter (every 5 minutes); cancelled on shutdown.
 	statsCtx, statsCancel := context.WithCancel(context.Background())
@@ -52,7 +61,7 @@ func Run() error {
 
 	srv := &http.Server{
 		Addr:              cfg.ListenAddr,
-		Handler:           api.NewRouter(stopsSvc),
+		Handler:           api.NewRouter(stopsSvc, routerOpts...),
 		ReadHeaderTimeout: readHeaderTime,
 	}
 

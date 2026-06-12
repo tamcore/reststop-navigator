@@ -58,6 +58,17 @@ httpRoute:
   hostnames: []
   parentRefs: []
 
+# Single-user admin backend (/admin UI + /api/admin endpoints). Disabled by
+# default. Set the password at deploy time, never in tracked values files:
+#   --set admin.enabled=true --set admin.password=<secret>
+# or point existingSecret at a Secret you manage that holds the password
+# under secretKey.
+admin:
+  enabled: false
+  password: ""
+  existingSecret: ""
+  secretKey: admin-password
+
 env:
   RESTSTOP_LISTEN_ADDR: ":8080"
   RESTSTOP_REFRESH_INTERVAL: "168h"

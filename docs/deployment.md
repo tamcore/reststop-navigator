@@ -95,6 +95,10 @@ Source of truth for the released chart. Defaults are intentionally empty for clu
 | `networkPolicy.enabled` | `true` | Restricts Redis ingress to the app pods (needs a NetworkPolicy-enforcing CNI). |
 | `podSecurityContext` / `securityContext` | nonroot, read-only rootfs, no caps | App pod/container hardening; override per key if needed. |
 | `redis.podSecurityContext` / `redis.securityContext` | redis uid/gid, read-only rootfs | Redis hardening; `fsGroup` keeps the `/data` emptyDir writable. |
+| `admin.enabled` | `false` | Mounts the single-user admin API/UI and injects `RESTSTOP_ADMIN_PASSWORD` from a Secret. |
+| `admin.password` | `""` | Deploy-time only (`--set admin.password=...`) — never in tracked values. Renders a chart-managed Secret. |
+| `admin.existingSecret` | `""` | Use a pre-existing Secret instead of the chart-managed one. |
+| `admin.secretKey` | `admin-password` | Key inside the Secret holding the password. |
 
 Since chart `0.0.2` all app-side selectors (Deployment, Service, PDB, topology spread) include `app.kubernetes.io/component: app`, so they no longer match the in-chart Redis pods. The Deployment selector change is breaking for in-place upgrades from earlier releases: delete the Deployments and let the controller recreate them.
 

@@ -91,6 +91,7 @@ dev-deploy-k8s: ## Build dev image, push to IMAGE_REGISTRY, deploy to K8s namesp
 		--set image.digest="$$IMAGE_DIGEST" \
 		--set ingress.hosts[0]="$(INGRESS_HOST)" \
 		--set ingress.tls[0].hosts[0]="$(INGRESS_HOST)" \
+		$(HELM_EXTRA_ARGS) \
 	| kubectl $(KUBECTL_CTX) apply -n $(DEPLOY_NS) -f - --wait
 	@echo ""
 	@echo "Deployment dispatched. Watch:"

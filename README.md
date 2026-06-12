@@ -30,7 +30,17 @@ MVP supports motorways and trunk roads in:
 - **Data:** OpenStreetMap via the Overpass API. Cached lazily into Redis as 0.5° geographic tiles on first request, with a 7-day TTL.
 - **Deploy:** Helm chart + Kubernetes (`ingress-nginx` + cert-manager), released via goreleaser.
 
-No accounts. No tracking. The browser asks for geolocation; the backend never stores per-user data.
+No accounts. No tracking. The browser asks for geolocation; the backend stores no identifying data. With the optional admin backend enabled, the last reported position per anonymous browser-generated UUID is kept in Redis for 15 minutes (live view only, nothing persisted).
+
+## Admin backend (optional)
+
+A single-user admin live view at `/admin` shows active clients on a map, the Redis tile cache (tiles + contained stops), and runtime stats. Disabled unless `RESTSTOP_ADMIN_PASSWORD` is set (HTTP Basic Auth, any username). Via Helm:
+
+```sh
+helm upgrade ... --set admin.enabled=true --set admin.password=<secret>
+```
+
+The chart stores the password in a Kubernetes Secret and injects it as `RESTSTOP_ADMIN_PASSWORD`; `admin.existingSecret` lets you bring your own Secret.
 
 ## Docs
 

@@ -55,6 +55,28 @@ func TestLoad_FromEnv(t *testing.T) {
 	}
 }
 
+func TestLoad_AdminPasswordDefaultsEmpty(t *testing.T) {
+	t.Setenv("RESTSTOP_ADMIN_PASSWORD", "")
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.AdminPassword != "" {
+		t.Errorf("AdminPassword = %q, want empty", cfg.AdminPassword)
+	}
+}
+
+func TestLoad_AdminPasswordFromEnv(t *testing.T) {
+	t.Setenv("RESTSTOP_ADMIN_PASSWORD", "hunter2")
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.AdminPassword != "hunter2" {
+		t.Errorf("AdminPassword = %q, want %q", cfg.AdminPassword, "hunter2")
+	}
+}
+
 func TestLoad_RejectsBadDuration(t *testing.T) {
 	t.Setenv("RESTSTOP_REFRESH_INTERVAL", "not-a-duration")
 	if _, err := config.Load(); err == nil {

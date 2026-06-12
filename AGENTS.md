@@ -72,6 +72,8 @@ For onboarding, start with `docs/architecture.md`, then `docs/development.md`, t
 
 Deployment values (`IMAGE_REGISTRY`, `INGRESS_HOST`, kube context, etc.) are caller-supplied. The chart defaults `ingress.hosts` and `ingress.tls` to empty so a public render reveals nothing. See `AGENTS.md.local` for the actual env vars.
 
+The admin backend password (`admin.password` → `RESTSTOP_ADMIN_PASSWORD`) is **private**: pass it only at deploy time via `--set`/env, never in tracked files, commits, or logs.
+
 Once env is sourced:
 ```sh
 make dev-deploy-k8s

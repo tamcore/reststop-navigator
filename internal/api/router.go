@@ -13,11 +13,40 @@ import (
 	"github.com/tamcore/reststop-navigator/web"
 )
 
+// routerCfg collects optional router features.
+type routerCfg struct {
+	adminPassword string
+	admin         *handlers.Admin
+	presence      handlers.PresenceRecorder
+}
+
+// RouterOption configures NewRouter.
+type RouterOption func(*routerCfg)
+
+// WithAdmin mounts the admin API behind Basic Auth. With an empty password or
+// nil handler the admin routes are not mounted at all.
+func WithAdmin(password string, admin *handlers.Admin) RouterOption {
+	return func(c *routerCfg) {
+		c.adminPassword = password
+		c.admin = admin
+	}
+}
+
+// WithPresenceRecorder enables live-position recording on the stops handler.
+func WithPresenceRecorder(rec handlers.PresenceRecorder) RouterOption {
+	return func(c *routerCfg) { c.presence = rec }
+}
+
 // NewRouter returns the public HTTP handler. Routes live under /api.
 //
 // stopsSvc may be nil — in that case only /api/healthz is mounted, useful for
 // the bootstrap/init phase before the cache is hydrated.
-func NewRouter(stopsSvc handlers.StopsService) http.Handler {
+func NewRouter(stopsSvc handlers.StopsService, opts ...RouterOption) http.Handler {
+	var cfg routerCfg
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
 	r := chi.NewRouter()
 	r.Use(chimw.RequestID)
 	r.Use(middleware.RealIP)
@@ -28,7 +57,18 @@ func NewRouter(stopsSvc handlers.StopsService) http.Handler {
 	r.Get("/api/healthz", healthz)
 
 	if stopsSvc != nil {
-		handlers.NewStops(stopsSvc).Mount(r)
+		var stopsOpts []handlers.StopsOption
+		if cfg.presence != nil {
+			stopsOpts = append(stopsOpts, handlers.WithPresenceRecorder(cfg.presence))
+		}
+		handlers.NewStops(stopsSvc, stopsOpts...).Mount(r)
+	}
+
+	if cfg.adminPassword != "" && cfg.admin != nil {
+		r.Group(func(g chi.Router) {
+			g.Use(middleware.AdminAuth(cfg.adminPassword))
+			cfg.admin.Mount(g)
+		})
 	}
 
 	// Mount the embedded frontend at root, when present. Built without the
