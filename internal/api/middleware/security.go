@@ -13,7 +13,10 @@ func SecurityHeaders(next http.Handler) http.Handler {
 		h := w.Header()
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("X-Frame-Options", "DENY")
-		h.Set("Referrer-Policy", "no-referrer")
+		// strict-origin-when-cross-origin (not no-referrer): the OSM tile
+		// usage policy requires a valid Referer on tile requests, and this
+		// policy sends only the origin cross-origin — no path or query.
+		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		h.Set("Permissions-Policy", "geolocation=(self)")
 		// 'unsafe-inline' for script-src is required by SvelteKit's static adapter,
 		// which emits inline hydration data scripts. Acceptable for an unauthenticated
