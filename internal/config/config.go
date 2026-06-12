@@ -17,6 +17,9 @@ type Config struct {
 	RedisURL          string
 	OverpassEndpoints []string
 	RefreshInterval   time.Duration
+	// AdminPassword protects the /api/admin endpoints. Empty disables the
+	// admin API entirely (routes are not mounted).
+	AdminPassword string
 }
 
 // Load reads configuration from RESTSTOP_* env vars, applying defaults for
@@ -28,6 +31,7 @@ func Load() (Config, error) {
 		RedisURL:          envOrDefault("RESTSTOP_REDIS_URL", "redis://localhost:6379/0"),
 		OverpassEndpoints: parseCSV(os.Getenv("RESTSTOP_OVERPASS_ENDPOINTS"), overpass.DefaultEndpoints),
 		RefreshInterval:   7 * 24 * time.Hour,
+		AdminPassword:     os.Getenv("RESTSTOP_ADMIN_PASSWORD"),
 	}
 
 	if raw := os.Getenv("RESTSTOP_REFRESH_INTERVAL"); raw != "" {
