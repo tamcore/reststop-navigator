@@ -20,9 +20,18 @@ spec:
         {{- include "reststop-navigator.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: redis
     spec:
+      automountServiceAccountToken: false
+      {{- with .Values.redis.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: redis
           image: {{ .Values.redis.image | quote }}
+          {{- with .Values.redis.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - name: redis
               containerPort: 6379
