@@ -34,6 +34,7 @@ This file explains how that works. Pair it with [development.md](development.md)
 - **Backend** — Go 1.26, chi router, slog. One binary serves both the embedded SPA and the `/api/...` JSON endpoints.
 - **Cache** — Redis only. No Postgres. The cache is rehydratable from Overpass, so persistence is intentionally off in the chart.
 - **Data** — OpenStreetMap via the Overpass API. Two endpoints (`overpass-api.de`, `overpass.kumi.systems`) with backoff + failover.
+- **Admin (optional)** — `/api/admin/*` + the `/admin` SvelteKit route give a single-user live view: client positions, tile cache contents, runtime stats. Mounted only when `RESTSTOP_ADMIN_PASSWORD` is set; guarded by `internal/api/middleware/admin_auth.go` (Basic Auth, constant-time compare). `internal/presence` records the last position per anonymous client UUID in Redis (`reststops:presence:v1:<uuid>`, 15-min TTL) — written best-effort from the upcoming handler when the PWA sends `X-Client-Id`, validated as a UUID at the boundary. Admin tile reads use `TileCache.GetCached`/`Snapshot` and never trigger Overpass fetches.
 
 ## The single most important data flow: `GET /api/stops/upcoming`
 
@@ -95,7 +96,8 @@ Single-carriageway segments (some rural SK/CZ, AT B-roads) carry both directions
 
 ## Security posture
 
-- **No accounts, no per-user storage, no third-party trackers.**
+- **No accounts, no identifying storage, no third-party trackers.** With admin enabled, the only per-client state is an anonymous random UUID → last position mapping in Redis with a 15-minute TTL; it links to no identity and is never persisted to disk.
+- Admin endpoints are not mounted at all without `RESTSTOP_ADMIN_PASSWORD`; with it, Basic Auth uses a constant-time, length-hiding comparison.
 - CSP: `default-src 'self'` + `script-src 'self' 'unsafe-inline'` (SvelteKit hydration scripts) + `img-src` allows OSM tile servers + `font-src 'self' data:` (@fontsource subsets).
 - HSTS only on TLS-backed requests (so plain-HTTP local dev still works).
 - Rate-limited at the ingress layer.

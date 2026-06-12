@@ -47,6 +47,13 @@ spec:
           env:
             - name: RESTSTOP_REDIS_URL
               value: {{ include "reststop-navigator.redisURL" . | quote }}
+            {{- if .Values.admin.enabled }}
+            - name: RESTSTOP_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.admin.existingSecret | default (printf "%s-admin" (include "reststop-navigator.fullname" .)) }}
+                  key: {{ .Values.admin.secretKey }}
+            {{- end }}
             {{- range $k, $v := .Values.env }}
             - name: {{ $k }}
               value: {{ $v | quote }}
