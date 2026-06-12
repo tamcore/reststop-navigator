@@ -9,12 +9,14 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
 	"github.com/tamcore/reststop-navigator/internal/api/handlers"
 	"github.com/tamcore/reststop-navigator/internal/geo"
 	"github.com/tamcore/reststop-navigator/internal/overpass"
+	"github.com/tamcore/reststop-navigator/internal/presence"
 	"github.com/tamcore/reststop-navigator/internal/stops"
 )
 
@@ -41,6 +43,24 @@ func (f *fakeService) Get(_ context.Context, id string, pos geo.LatLng) (stops.D
 		return f.get(id)
 	}
 	return stops.DetailResponse{}, stops.ErrStopNotFound
+}
+
+type recordedPosition struct {
+	clientID string
+	pos      presence.Position
+}
+
+type fakeRecorder struct {
+	ch chan recordedPosition
+}
+
+func newFakeRecorder() *fakeRecorder {
+	return &fakeRecorder{ch: make(chan recordedPosition, 8)}
+}
+
+func (f *fakeRecorder) Record(_ context.Context, clientID string, p presence.Position) error {
+	f.ch <- recordedPosition{clientID: clientID, pos: p}
+	return nil
 }
 
 func mountServer(h *handlers.Stops) *httptest.Server {
@@ -297,6 +317,73 @@ func TestUpcoming_AccuracyBadValue400(t *testing.T) {
 	t.Cleanup(func() { _ = resp.Body.Close() })
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("status = %d, want 400", resp.StatusCode)
+	}
+}
+
+func TestUpcoming_RecordsPresenceForValidClientID(t *testing.T) {
+	t.Parallel()
+	rec := newFakeRecorder()
+	srv := mountServer(handlers.NewStops(&fakeService{}, handlers.WithPresenceRecorder(rec)))
+	t.Cleanup(srv.Close)
+
+	req, err := http.NewRequest(http.MethodGet, srv.URL+"/api/stops/upcoming?lat=48.1&lon=11.5&heading=92.5&speed=104&accuracy=8", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("X-Client-Id", "b3a4c1d2-5e6f-4a7b-8c9d-0e1f2a3b4c5d")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = resp.Body.Close() })
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d", resp.StatusCode)
+	}
+
+	select {
+	case got := <-rec.ch:
+		if got.clientID != "b3a4c1d2-5e6f-4a7b-8c9d-0e1f2a3b4c5d" {
+			t.Errorf("clientID = %q", got.clientID)
+		}
+		if got.pos.Lat != 48.1 || got.pos.Lon != 11.5 || got.pos.Heading != 92.5 || got.pos.Speed != 104 || got.pos.Accuracy != 8 {
+			t.Errorf("position = %+v", got.pos)
+		}
+		if got.pos.LastSeen.IsZero() {
+			t.Error("LastSeen should be set")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("presence recorder was not called")
+	}
+}
+
+func TestUpcoming_SkipsPresenceForInvalidOrMissingClientID(t *testing.T) {
+	t.Parallel()
+	rec := newFakeRecorder()
+	srv := mountServer(handlers.NewStops(&fakeService{}, handlers.WithPresenceRecorder(rec)))
+	t.Cleanup(srv.Close)
+
+	for _, id := range []string{"", "not-a-uuid"} {
+		req, err := http.NewRequest(http.MethodGet, srv.URL+"/api/stops/upcoming?lat=48&lon=11", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if id != "" {
+			req.Header.Set("X-Client-Id", id)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("status = %d", resp.StatusCode)
+		}
+	}
+
+	select {
+	case got := <-rec.ch:
+		t.Fatalf("recorder called unexpectedly with %+v", got)
+	case <-time.After(100 * time.Millisecond):
 	}
 }
 

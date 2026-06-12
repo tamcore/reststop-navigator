@@ -20,8 +20,31 @@ export type UpcomingParams = {
 	signal?: AbortSignal;
 };
 
+const CLIENT_ID_STORAGE_KEY = 'reststop:client-id';
+
+let ephemeralClientId: string | null = null;
+
+/**
+ * Returns this browser's anonymous client id (random UUID), persisted in
+ * localStorage. Falls back to an in-memory id when storage is unavailable
+ * (e.g. private mode). Sent as X-Client-Id so the admin live view can show
+ * active clients; it carries no identity.
+ */
+export function getClientId(): string {
+	try {
+		const stored = localStorage.getItem(CLIENT_ID_STORAGE_KEY);
+		if (stored) return stored;
+		const id = crypto.randomUUID();
+		localStorage.setItem(CLIENT_ID_STORAGE_KEY, id);
+		return id;
+	} catch {
+		if (!ephemeralClientId) ephemeralClientId = crypto.randomUUID();
+		return ephemeralClientId;
+	}
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-	const res = await fetch(path, { ...init, headers: { Accept: 'application/json' } });
+	const res = await fetch(path, { ...init, headers: { Accept: 'application/json', ...init?.headers } });
 	if (!res.ok) {
 		let msg = res.statusText;
 		try {
@@ -44,7 +67,10 @@ export function fetchUpcoming(params: UpcomingParams): Promise<UpcomingResponse>
 	if (params.accuracy !== undefined && params.accuracy > 0) q.set('accuracy', String(params.accuracy));
 	if (params.filters && params.filters.length > 0) q.set('filters', params.filters.join(','));
 	if (params.limit) q.set('limit', String(params.limit));
-	return request<UpcomingResponse>(`/api/stops/upcoming?${q.toString()}`, { signal: params.signal });
+	return request<UpcomingResponse>(`/api/stops/upcoming?${q.toString()}`, {
+		signal: params.signal,
+		headers: { 'X-Client-Id': getClientId() }
+	});
 }
 
 export function fetchStopDetail(

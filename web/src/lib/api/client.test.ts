@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, fetchStopDetail, fetchUpcoming } from './client';
+import { ApiError, fetchStopDetail, fetchUpcoming, getClientId } from './client';
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 	return new Response(JSON.stringify(body), {
@@ -82,6 +82,55 @@ describe('fetchUpcoming', () => {
 	it('throws ApiError with statusText when body is not JSON', async () => {
 		fetchSpy.mockResolvedValue(new Response('plain', { status: 500, statusText: 'Boom' }));
 		await expect(fetchUpcoming({ lat: 0, lon: 0 })).rejects.toBeInstanceOf(ApiError);
+	});
+});
+
+describe('getClientId', () => {
+	const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+	beforeEach(() => {
+		localStorage.clear();
+	});
+
+	afterEach(() => {
+		localStorage.clear();
+	});
+
+	it('generates a UUID and persists it in localStorage', () => {
+		const id = getClientId();
+		expect(id).toMatch(UUID_RE);
+		expect(localStorage.getItem('reststop:client-id')).toBe(id);
+	});
+
+	it('returns the same id on repeated calls', () => {
+		expect(getClientId()).toBe(getClientId());
+	});
+
+	it('reuses an existing stored id', () => {
+		localStorage.setItem('reststop:client-id', '11111111-2222-4333-8444-555555555555');
+		expect(getClientId()).toBe('11111111-2222-4333-8444-555555555555');
+	});
+});
+
+describe('fetchUpcoming client id header', () => {
+	beforeEach(() => {
+		localStorage.clear();
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+		localStorage.clear();
+	});
+
+	it('sends X-Client-Id header', async () => {
+		const fetchSpy = vi.fn().mockResolvedValue(jsonResponse({ stops: [] }));
+		globalThis.fetch = fetchSpy as typeof fetch;
+
+		await fetchUpcoming({ lat: 48, lon: 11 });
+
+		const init = fetchSpy.mock.calls[0][1] as RequestInit;
+		const headers = init.headers as Record<string, string>;
+		expect(headers['X-Client-Id']).toBe(getClientId());
 	});
 });
 
