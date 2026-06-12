@@ -50,7 +50,7 @@ env:
 # point at an external Redis via externalRedisURL.
 redis:
   enabled: true
-  image: redis:7-alpine
+  image: redis:8-alpine
   resources:
     requests:
       cpu: 50m
