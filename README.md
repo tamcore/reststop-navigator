@@ -27,7 +27,8 @@ MVP supports motorways and trunk roads in:
 
 - **Backend:** Go (chi router), Redis cache.
 - **Frontend:** SvelteKit PWA, embedded into the Go binary.
-- **Data:** OpenStreetMap via the Overpass API. Cached lazily into Redis as 0.5° geographic tiles on first request, with a 7-day TTL.
+- **Data:** Rest-stop data from OpenStreetMap via the Overpass API. Cached lazily into Redis as 0.5° geographic tiles on first request, with a 7-day TTL.
+- **Map tiles:** BKG TopPlusOpen © Bundesamt für Kartographie und Geodäsie (dl-de/by-2.0) — EU-hosted, no API key.
 - **Deploy:** Helm chart + Kubernetes (`ingress-nginx` + cert-manager), released via goreleaser.
 
 No accounts. No tracking. The browser asks for geolocation; the backend stores no identifying data. With the optional admin backend enabled, the last reported position per anonymous browser-generated UUID is kept in Redis for 15 minutes (live view only, nothing persisted).

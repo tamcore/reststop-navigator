@@ -40,7 +40,7 @@
 </main>
 
 <footer class="app-footer">
-	<span>OSM data</span>
+	<span>Map © BKG</span>
 	<span class="dot">·</span>
 	<span>DE / AT / SK / CZ</span>
 	<span class="dot">·</span>

@@ -130,11 +130,11 @@
 			[detail.stop.lat, detail.stop.lon],
 			11
 		);
-		L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-			attribution: '© OpenStreetMap',
-			maxZoom: 19
-		}).addTo(map);
-		L.control.attribution({ prefix: false }).addAttribution('© OSM').addTo(map);
+		L.tileLayer(
+			'https://sgx.geodatenzentrum.de/wmts_topplus_open/tile/1.0.0/web_grau/default/WEBMERCATOR/{z}/{y}/{x}.png',
+			{ maxZoom: 18, attribution: '© BKG (TopPlusOpen)' }
+		).addTo(map);
+		L.control.attribution({ prefix: false }).addAttribution('© BKG').addTo(map);
 		const stopIcon = L.divIcon({
 			className: 'rs-stop-pin',
 			html: `<svg viewBox="0 0 28 36" width="28" height="36" aria-hidden="true">

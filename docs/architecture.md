@@ -98,7 +98,7 @@ Single-carriageway segments (some rural SK/CZ, AT B-roads) carry both directions
 
 - **No accounts, no identifying storage, no third-party trackers.** With admin enabled, the only per-client state is an anonymous random UUID → last position mapping in Redis with a 15-minute TTL; it links to no identity and is never persisted to disk.
 - Admin endpoints are not mounted at all without `RESTSTOP_ADMIN_PASSWORD`; with it, Basic Auth verifies via bcrypt (constant-time, and the per-request cost doubles as brute-force throttling).
-- CSP: `default-src 'self'` + `script-src 'self' 'unsafe-inline'` (SvelteKit hydration scripts) + `img-src` allows OSM tile servers + `font-src 'self' data:` (@fontsource subsets).
+- CSP: `default-src 'self'` + `script-src 'self' 'unsafe-inline'` (SvelteKit hydration scripts) + `img-src` allows the BKG TopPlusOpen tile host (EU-hosted) + `font-src 'self' data:` (@fontsource subsets).
 - HSTS only on TLS-backed requests (so plain-HTTP local dev still works).
 - Rate-limited at the ingress layer.
 - Geolocation is the only browser permission requested.
