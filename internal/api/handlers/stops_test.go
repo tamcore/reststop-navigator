@@ -256,7 +256,7 @@ func TestDetail_RequiresID400(t *testing.T) {
 	}
 }
 
-func mustDecode(t *testing.T, r io.Reader, v interface{}) {
+func mustDecode(t *testing.T, r io.Reader, v any) {
 	t.Helper()
 	body, err := io.ReadAll(r)
 	if err != nil {

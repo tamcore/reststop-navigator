@@ -375,11 +375,9 @@ func TestGetSingleflightCoalescesConcurrentFetches(t *testing.T) {
 	datasets := make([]overpass.Dataset, n)
 	var wg sync.WaitGroup
 	for i := range n {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			datasets[i], errs[i] = c.Get(context.Background(), tile)
-		}()
+		})
 	}
 
 	// Give goroutines time to enter singleflight, then release.

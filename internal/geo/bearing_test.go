@@ -26,7 +26,6 @@ func TestBearing(t *testing.T) {
 		{"a1 vienna-salzburg", geo.LatLng{Lat: 48.21, Lon: 16.37}, geo.LatLng{Lat: 47.81, Lon: 13.05}, 260.4, 1.0},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			got := geo.Bearing(tc.a, tc.b)
@@ -64,7 +63,6 @@ func TestAngleDiff(t *testing.T) {
 		{"large input", 720 + 30, 30, 0},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			got := geo.AngleDiff(tc.a, tc.b)
