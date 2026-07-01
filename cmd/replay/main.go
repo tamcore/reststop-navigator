@@ -19,6 +19,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/tamcore/reststop-navigator/internal/geo"
@@ -107,13 +108,14 @@ func callAPI(c *http.Client, target string, lat, lon, heading, speed float64) st
 	if u.Road != nil {
 		roadLabel = u.Road.Ref + " " + u.Road.Direction
 	}
-	out := "road=" + roadLabel + " next=["
+	var out strings.Builder
+	out.WriteString("road=" + roadLabel + " next=[")
 	for i, s := range u.Stops {
 		if i > 0 {
-			out += ", "
+			out.WriteString(", ")
 		}
-		out += fmt.Sprintf("%s %.1fkm", s.Name, float64(s.DistanceM)/1000.0)
+		fmt.Fprintf(&out, "%s %.1fkm", s.Name, float64(s.DistanceM)/1000.0)
 	}
-	out += "]"
-	return out
+	out.WriteString("]")
+	return out.String()
 }

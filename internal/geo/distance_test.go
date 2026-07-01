@@ -25,7 +25,6 @@ func TestDistance(t *testing.T) {
 		{"1 deg lon at 48N", geo.LatLng{Lat: 48, Lon: 0}, geo.LatLng{Lat: 48, Lon: 1}, 74400, 200},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			got := geo.Distance(tc.a, tc.b)
@@ -62,7 +61,6 @@ func TestDistancePointToSegment(t *testing.T) {
 		{"degenerate a==b", geo.LatLng{Lat: 48.001, Lon: 11}, a, a, 111.2, 1},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			got := geo.DistancePointToSegment(tc.p, tc.a, tc.b)

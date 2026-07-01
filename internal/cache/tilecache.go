@@ -122,7 +122,7 @@ func (c *TileCache) Get(ctx context.Context, t Tile) (overpass.Dataset, error) {
 	// Detach from the caller's context so that a client disconnect does not
 	// abort the Overpass fetch. Without this, rapid GPS-triggered request
 	// cancellations prevent the tile from ever being cached (starvation).
-	v, err, _ := c.flight.Do(key, func() (interface{}, error) {
+	v, err, _ := c.flight.Do(key, func() (any, error) {
 		fetchCtx := context.WithoutCancel(ctx)
 		return c.fetchAndCache(fetchCtx, t, key)
 	})
@@ -177,12 +177,9 @@ func (c *TileCache) GetMerged(ctx context.Context, pos geo.LatLng) (overpass.Dat
 
 	var wg sync.WaitGroup
 	for i, t := range tiles {
-		i, t := i, t
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			results[i], errs[i] = c.Get(ctx, t)
-		}()
+		})
 	}
 	wg.Wait()
 

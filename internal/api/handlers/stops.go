@@ -179,7 +179,7 @@ func (h *Stops) recordPresence(r *http.Request, req stops.UpcomingRequest) {
 
 func parseFilters(raw string) stops.Filters {
 	var f stops.Filters
-	for _, part := range strings.Split(raw, ",") {
+	for part := range strings.SplitSeq(raw, ",") {
 		switch strings.TrimSpace(part) {
 		case "fuel":
 			f.Fuel = true
@@ -242,7 +242,7 @@ func firstValue(q map[string][]string, key string) string {
 	return vs[0]
 }
 
-func writeJSON(w http.ResponseWriter, status int, v interface{}) {
+func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)

@@ -109,7 +109,7 @@ func TestStats_CountsHitsAndMisses(t *testing.T) {
 	ctx := context.Background()
 	tile := Tile{South: 48.0, West: 11.0}
 
-	for i := 0; i < 3; i++ { // 1 miss, then 2 hits
+	for i := range 3 { // 1 miss, then 2 hits
 		if _, err := c.Get(ctx, tile); err != nil {
 			t.Fatalf("Get #%d: %v", i, err)
 		}

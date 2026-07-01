@@ -48,7 +48,6 @@ func TestIsSupported(t *testing.T) {
 func TestCountryQuery_Shape(t *testing.T) {
 	t.Parallel()
 	for _, c := range overpass.SupportedCountries() {
-		c := c
 		t.Run(string(c), func(t *testing.T) {
 			t.Parallel()
 			q, err := overpass.CountryQuery(c)
@@ -75,7 +74,6 @@ func TestCountryQuery_RejectsUnsupported(t *testing.T) {
 	t.Parallel()
 	cases := []overpass.CountryISO{"FR", "XX", "", "de"}
 	for _, c := range cases {
-		c := c
 		t.Run(string(c), func(t *testing.T) {
 			t.Parallel()
 			if _, err := overpass.CountryQuery(c); err == nil {

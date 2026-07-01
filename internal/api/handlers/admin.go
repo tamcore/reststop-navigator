@@ -60,7 +60,7 @@ func (a *Admin) positions(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]interface{}{
+	writeJSON(w, http.StatusOK, map[string]any{
 		"clients": clients,
 		"count":   len(clients),
 	})
@@ -73,7 +73,7 @@ func (a *Admin) tilesList(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]interface{}{"tiles": infos})
+	writeJSON(w, http.StatusOK, map[string]any{"tiles": infos})
 }
 
 func (a *Admin) tileStops(w http.ResponseWriter, r *http.Request) {
@@ -99,7 +99,7 @@ func (a *Admin) tileStops(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "tile not cached")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]interface{}{"stops": ds.Stops})
+	writeJSON(w, http.StatusOK, map[string]any{"stops": ds.Stops})
 }
 
 // usedMemoryRe extracts used_memory from a Redis INFO memory section.
@@ -113,7 +113,7 @@ func (a *Admin) stats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	out := map[string]interface{}{
+	out := map[string]any{
 		"uptime_seconds": int64(time.Since(a.start).Seconds()),
 		"cache":          a.tiles.Stats(),
 		"presence_count": len(clients),

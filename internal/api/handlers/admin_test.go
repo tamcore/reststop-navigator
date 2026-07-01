@@ -55,7 +55,7 @@ func mountAdmin(t *testing.T, a *handlers.Admin) *httptest.Server {
 	return srv
 }
 
-func getJSON(t *testing.T, url string, v interface{}) *http.Response {
+func getJSON(t *testing.T, url string, v any) *http.Response {
 	t.Helper()
 	resp, err := http.Get(url)
 	if err != nil {
