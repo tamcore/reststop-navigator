@@ -3,7 +3,7 @@ module github.com/tamcore/reststop-navigator
 go 1.27.2
 
 require (
-	github.com/alicebob/miniredis/v2 v2.39.0
+	github.com/alicebob/miniredis/v2 v2.40.0
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/redis/go-redis/v9 v9.23.0
 	golang.org/x/crypto v0.58.0
