@@ -2,7 +2,7 @@
 # Multi-stage dev build used by docker-compose.dev.yaml + the e2e CI job.
 # Builds the SvelteKit frontend, compiles the Go binary with -tags prodfrontend.
 
-FROM node:24-alpine AS frontend
+FROM node:26-alpine AS frontend
 WORKDIR /src
 COPY web/package.json web/package-lock.json ./
 RUN npm ci --silent
